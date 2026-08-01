@@ -6,18 +6,20 @@
         <div class="text-caption text-grey-7">Inventario inicial, precios e imágenes</div>
       </div>
       <q-space />
+      <q-btn-dropdown dense flat color="primary" icon="download" label="Exportar" no-caps class="q-mr-xs"><q-list dense><q-item clickable v-close-popup @click="download('excel')"><q-item-section avatar><q-icon name="table_view" color="positive"/></q-item-section><q-item-section>Excel</q-item-section></q-item><q-item clickable v-close-popup @click="download('pdf')"><q-item-section avatar><q-icon name="picture_as_pdf" color="negative"/></q-item-section><q-item-section>PDF</q-item-section></q-item></q-list></q-btn-dropdown>
       <q-btn v-if="can('Editar Productos')" dense flat color="primary" icon="category" label="Categorías" no-caps class="q-mr-xs" @click="openCategories" />
       <q-btn v-if="can('Crear Productos')" dense color="primary" icon="add" label="Nuevo" no-caps @click="openForm()" />
     </div>
 
     <q-card flat bordered>
       <q-card-section class="row q-col-gutter-sm q-pa-sm">
-        <q-input v-model="search" outlined dense debounce="350" class="col-12 col-md-5"
+        <q-input v-model="search" outlined dense debounce="350" class="col-12 col-md-4"
                  placeholder="Buscar por código, producto o categoría" clearable @update:model-value="load">
           <template #prepend><q-icon name="search" /></template>
         </q-input>
         <q-select v-model="category" :options="catalogs.categorias" option-label="nombre" outlined dense clearable
                   label="Categoría" class="col-12 col-md-3" @update:model-value="load" />
+        <q-select v-model="order" :options="orderOptions" emit-value map-options outlined dense label="Ordenar por" class="col-12 col-md-3" @update:model-value="load" />
       </q-card-section>
       <q-table dense flat :rows="rows" :columns="columns" row-key="id" :loading="loading"
                v-model:pagination="pagination" :rows-per-page-options="[10,20,50,100,0]" @request="onRequest" binary-state-sort>
@@ -109,7 +111,7 @@ const { proxy } = getCurrentInstance()
 const rows = ref([]), loading = ref(false), saving = ref(false), dialog = ref(false)
 const categoriesDialog = ref(false)
 const photo = ref(null), photoPreview = ref('')
-const search = ref(''), category = ref(null)
+const search = ref(''), category = ref(null), order = ref('nombre_asc')
 const catalogs = reactive({ categorias: [], unidades: [] })
 const unitOptions = ref(['GR', 'KG', 'ML', 'LT', 'UNIDAD'])
 const pagination = ref({ page: 1, rowsPerPage: 20, rowsNumber: 0 })
@@ -117,6 +119,7 @@ const empty = () => ({ id: null, codigo: '', codigo_barras: '', nombre: '', cate
 const form = reactive(empty())
 const categoryForm = reactive({ id:null, nombre:'', color:'primary' })
 const colorOptions=['primary','blue','light-blue','purple','amber','orange','red','pink','brown','blue-grey','green']
+const orderOptions=[{label:'Nombre A–Z',value:'nombre_asc'},{label:'Nombre Z–A',value:'nombre_desc'},{label:'Mayor stock',value:'stock_desc'},{label:'Menor stock',value:'stock_asc'},{label:'Mayor precio de venta',value:'precio_venta_desc'},{label:'Menor precio de venta',value:'precio_venta_asc'},{label:'Mayor precio de compra',value:'precio_compra_desc'},{label:'Menor precio de compra',value:'precio_compra_asc'},{label:'Categoría',value:'categoria_asc'}]
 const columns = [
   { name:'actions', label:'Acciones', align:'left' },
   { name:'foto', label:'', field:'foto', align:'left' },
@@ -134,13 +137,20 @@ const required = v => (v !== null && v !== '') || 'Campo requerido'
 const nonNegative = v => Number(v) >= 0 || 'Debe ser mayor o igual a cero'
 const money = v => Number(v || 0).toFixed(2)
 const photoUrl = path => `${proxy.$imgBase}/images/${path}`
-function load () { onRequest({ pagination: pagination.value }) }
+function filterParams () { return { q:search.value, categoria_id:category.value?.id, orden:order.value } }
+function load () { onRequest({ pagination:{ ...pagination.value, page:1 } }) }
 function onRequest ({ pagination: p }) {
   loading.value = true
-  proxy.$axios.get('/productos', { params:{ q:search.value, categoria_id:category.value?.id, page:p.page, per_page:p.rowsPerPage } })
+  proxy.$axios.get('/productos', { params:{ ...filterParams(), page:p.page, per_page:p.rowsPerPage } })
     .then(({ data }) => { rows.value=data.data; pagination.value={ ...p, rowsNumber:data.total } })
     .catch(e => proxy.$alert.error(e.response?.data?.message || 'No se pudieron cargar los productos'))
     .finally(() => { loading.value=false })
+}
+async function download (type) {
+  try {
+    const response=await proxy.$axios.get(`/productos-exportar/${type}`,{params:filterParams(),responseType:'blob'})
+    const url=URL.createObjectURL(response.data),a=document.createElement('a');a.href=url;a.download=`productos.${type==='excel'?'xlsx':'pdf'}`;a.click();URL.revokeObjectURL(url)
+  } catch { proxy.$alert.error('No se pudo exportar el inventario') }
 }
 function loadCatalogs () {
   return proxy.$axios.get('/productos-catalogos').then(({data}) => {

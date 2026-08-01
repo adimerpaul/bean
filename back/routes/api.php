@@ -27,6 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/productos', [ProductoController::class, 'index']);
     Route::get('/productos-catalogos', [ProductoController::class, 'catalogos']);
+    Route::get('/productos-exportar/excel', [ProductoController::class, 'exportExcel']);
+    Route::get('/productos-exportar/pdf', [ProductoController::class, 'exportPdf']);
     Route::post('/categorias', [ProductoController::class, 'storeCategoria']);
     Route::put('/categorias/{categoria}', [ProductoController::class, 'updateCategoria']);
     Route::delete('/categorias/{categoria}', [ProductoController::class, 'destroyCategoria']);
@@ -53,6 +55,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/compras/{compra}/anular', [CompraController::class, 'cancel']);
     Route::get('/proveedores', [CompraController::class, 'proveedores']);
     Route::post('/proveedores', [CompraController::class, 'storeProveedor']);
+    Route::put('/proveedores/{proveedor}', [CompraController::class, 'updateProveedor']);
+    Route::delete('/proveedores/{proveedor}', [CompraController::class, 'destroyProveedor']);
     Route::get('/vencimientos', [CompraController::class, 'vencimientos']);
     Route::put('/configuracion', [ConfiguracionController::class, 'update']);
     Route::post('/configuracion/logo', [ConfiguracionController::class, 'uploadLogo']);

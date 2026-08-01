@@ -2,18 +2,46 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ProductosExport;
 use App\Models\Categoria;
 use App\Models\Producto;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProductoController extends Controller
 {
     public function index(Request $request)
     {
         $this->authorizeAction($request, 'Ver Productos');
-        $query = Producto::with('categoriaRelacion:id,nombre,color')->orderBy('nombre');
+        $query = $this->filteredSortedQuery($request);
+
+        $perPage = (int) $request->input('per_page', 20);
+
+        return response()->json($query->paginate($perPage === 0 ? 500 : min(max($perPage, 1), 500)));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $this->authorizeAction($request, 'Ver Productos');
+
+        return Excel::download(new ProductosExport($this->filteredSortedQuery($request)->get()), 'productos_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $this->authorizeAction($request, 'Ver Productos');
+        $productos = $this->filteredSortedQuery($request)->get();
+
+        return Pdf::loadView('productos.reporte', compact('productos'))->setPaper('letter', 'landscape')
+            ->download('productos_'.now()->format('Ymd_His').'.pdf');
+    }
+
+    private function filteredSortedQuery(Request $request)
+    {
+        $query = Producto::with('categoriaRelacion:id,nombre,color');
 
         if ($search = trim((string) $request->input('q'))) {
             $query->where(fn ($q) => $q->where('codigo', 'like', "%{$search}%")
@@ -25,9 +53,19 @@ class ProductoController extends Controller
             $query->where('categoria_id', $categoriaId);
         }
 
-        $perPage = (int) $request->input('per_page', 20);
+        [$column, $direction] = match ($request->input('orden')) {
+            'nombre_desc' => ['nombre', 'desc'],
+            'stock_desc' => ['stock_inicial', 'desc'],
+            'stock_asc' => ['stock_inicial', 'asc'],
+            'precio_venta_desc' => ['precio_venta', 'desc'],
+            'precio_venta_asc' => ['precio_venta', 'asc'],
+            'precio_compra_desc' => ['precio_compra', 'desc'],
+            'precio_compra_asc' => ['precio_compra', 'asc'],
+            'categoria_asc' => ['categoria', 'asc'],
+            default => ['nombre', 'asc'],
+        };
 
-        return response()->json($query->paginate($perPage === 0 ? 500 : min(max($perPage, 1), 500)));
+        return $query->orderBy($column, $direction)->orderBy('nombre');
     }
 
     public function catalogos(Request $request)

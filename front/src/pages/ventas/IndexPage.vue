@@ -11,11 +11,12 @@
 
     <q-card flat bordered>
       <q-card-section class="row q-col-gutter-sm q-pa-sm">
-        <q-input v-model="search" dense outlined debounce="300" clearable placeholder="Buscar número, usuario o estado" class="col-12 col-md-4" @update:model-value="load"><template #prepend><q-icon name="search"/></template></q-input>
+        <q-input v-model="search" dense outlined debounce="300" clearable placeholder="Buscar número, usuario o estado" class="col-12 col-md-3" @update:model-value="load"><template #prepend><q-icon name="search"/></template></q-input>
         <q-select v-model="user" :options="summary.usuarios" option-label="name" dense outlined clearable label="Usuario" class="col-12 col-md-3" @update:model-value="load"/>
         <q-input v-model="from" dense outlined type="date" label="Desde" class="col-6 col-md-2" @update:model-value="load"/><q-input v-model="to" dense outlined type="date" label="Hasta" class="col-6 col-md-2" @update:model-value="load"/>
+        <q-input v-model="timeFrom" dense outlined type="time" label="Hora desde" class="col-6 col-md-2" @update:model-value="load"/><q-input v-model="timeTo" dense outlined type="time" label="Hora hasta" class="col-6 col-md-2" @update:model-value="load"/>
       </q-card-section>
-      <q-table dense flat :rows="rows" :columns="columns" row-key="id" :loading="loading" v-model:pagination="pagination" :rows-per-page-options="[15,30,60,0]" @request="onRequest">
+      <q-table dense flat :rows="rows" :columns="columns" row-key="id" :loading="loading" v-model:pagination="pagination" :rows-per-page-options="[50,100,200]" @request="onRequest">
         <template #body-cell-total="p"><q-td :props="p"><b>Bs {{money(p.value)}}</b></q-td></template>
         <template #body-cell-tipo_pago="p"><q-td :props="p"><q-chip dense square :color="paymentColor(p.value)" text-color="white" :icon="p.value==='QR'?'qr_code_2':p.value==='EFECTIVO'?'payments':'account_balance_wallet'">{{p.value}}</q-chip></q-td></template>
         <template #body-cell-estado="p"><q-td :props="p"><q-badge :color="p.value==='COMPLETADA'?'positive':'negative'" :label="p.value"/></q-td></template>
@@ -30,13 +31,13 @@
 <script setup>
 import {computed,getCurrentInstance,reactive,ref} from 'vue'
 import {printSale} from '../../addons/ventaPrint'
-const {proxy}=getCurrentInstance(),rows=ref([]),loading=ref(false),search=ref(''),from=ref(''),to=ref(''),user=ref(null),dialog=ref(false),selected=reactive({}),summary=reactive({efectivo:0,qr:0,total:0,descuento:0,cantidad:0,usuarios:[]})
-const pagination=ref({page:1,rowsPerPage:15,rowsNumber:0}),money=v=>Number(v||0).toFixed(2),can=p=>proxy.$store.hasPermission(p)
+const {proxy}=getCurrentInstance(),rows=ref([]),loading=ref(false),search=ref(''),from=ref(''),to=ref(''),timeFrom=ref(''),timeTo=ref(''),user=ref(null),dialog=ref(false),selected=reactive({}),summary=reactive({efectivo:0,qr:0,total:0,descuento:0,cantidad:0,usuarios:[]})
+const pagination=ref({page:1,rowsPerPage:50,rowsNumber:0}),money=v=>Number(v||0).toFixed(2),can=p=>proxy.$store.hasPermission(p)
 const cards=computed(()=>[{label:'Total vendido',value:summary.total,money:true,icon:'trending_up',color:'primary'},{label:'Efectivo',value:summary.efectivo,money:true,icon:'payments',color:'green'},{label:'QR',value:summary.qr,money:true,icon:'qr_code_2',color:'blue'},{label:'Ventas',value:summary.cantidad,money:false,icon:'receipt_long',color:'purple'}])
 const columns=[{name:'actions',label:'',align:'left'},{name:'numero',label:'Nº venta',field:'numero',align:'left'},{name:'fecha',label:'Fecha',field:r=>formatDate(r.fecha),align:'left'},{name:'usuario',label:'Usuario',field:'usuario_nombre',align:'left'},{name:'tipo_pago',label:'Pago',field:'tipo_pago',align:'center'},{name:'detalles',label:'Productos',field:'detalles_count',align:'center'},{name:'descuento',label:'Descuento',field:'descuento',format:v=>`Bs ${money(v)}`,align:'right'},{name:'total',label:'Total',field:'total',align:'right'},{name:'estado',label:'Estado',field:'estado',align:'center'}]
 const detailColumns=[{name:'codigo',label:'Código',field:'codigo',align:'left'},{name:'nombre',label:'Producto',field:'nombre',align:'left'},{name:'cantidad',label:'Cant.',field:'cantidad',align:'center'},{name:'precio',label:'Precio',field:'precio_venta',format:v=>`Bs ${money(v)}`,align:'right'},{name:'total',label:'Total',field:'total',align:'right'}]
-const params=()=>({q:search.value,desde:from.value,hasta:to.value,user_id:user.value?.id}),paymentColor=v=>v==='EFECTIVO'?'green':v==='QR'?'blue':'purple'
-function formatDate(v){return v?new Date(v).toLocaleString('es-BO'):''}function load(){onRequest({pagination:pagination.value})}function loadSummary(){proxy.$axios.get('/ventas-resumen',{params:params()}).then(r=>Object.assign(summary,r.data))}
+const params=()=>({q:search.value,desde:from.value,hasta:to.value,hora_desde:timeFrom.value,hora_hasta:timeTo.value,user_id:user.value?.id}),paymentColor=v=>v==='EFECTIVO'?'green':v==='QR'?'blue':'purple'
+function formatDate(v){return v?new Date(v).toLocaleString('es-BO'):''}function load(){onRequest({pagination:{...pagination.value,page:1}})}function loadSummary(){proxy.$axios.get('/ventas-resumen',{params:params()}).then(r=>Object.assign(summary,r.data))}
 function onRequest({pagination:p}){loading.value=true;proxy.$axios.get('/ventas',{params:{...params(),page:p.page,per_page:p.rowsPerPage}}).then(r=>{rows.value=r.data.data;pagination.value={...p,rowsNumber:r.data.total};loadSummary()}).catch(e=>proxy.$alert.error(e.response?.data?.message||'No se pudieron cargar las ventas')).finally(()=>loading.value=false)}
 function showDetail(row){proxy.$axios.get(`/ventas/${row.id}`).then(r=>{Object.assign(selected,r.data);dialog.value=true})}function printRow(row){proxy.$axios.get(`/ventas/${row.id}`).then(r=>printSale(r.data))}
 function cancel(row){proxy.$alert.dialog(`¿Anular la venta ${row.numero}? El stock será restaurado.`).onOk(()=>proxy.$axios.put(`/ventas/${row.id}/anular`).then(()=>{proxy.$alert.success('Venta anulada');load()}).catch(e=>proxy.$alert.error(e.response?.data?.message||'No se pudo anular')))}

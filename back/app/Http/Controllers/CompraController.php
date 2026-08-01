@@ -62,14 +62,33 @@ class CompraController extends Controller
     public function storeProveedor(Request $request)
     {
         $this->authorizeAction($request, 'Crear Compras');
-        $data = $request->validate([
+        return response()->json(Proveedor::create($this->validatedProvider($request)), 201);
+    }
+
+    public function updateProveedor(Request $request, Proveedor $proveedor)
+    {
+        $this->authorizeAction($request, 'Crear Compras');
+        $proveedor->update($this->validatedProvider($request));
+
+        return response()->json($proveedor->fresh());
+    }
+
+    public function destroyProveedor(Request $request, Proveedor $proveedor)
+    {
+        $this->authorizeAction($request, 'Crear Compras');
+        $proveedor->delete();
+
+        return response()->json(['message' => 'Proveedor eliminado correctamente']);
+    }
+
+    private function validatedProvider(Request $request): array
+    {
+        return $request->validate([
             'nombre' => ['required', 'string', 'max:150'],
             'nit' => ['nullable', 'string', 'max:30'],
             'telefono' => ['nullable', 'string', 'max:50'],
             'direccion' => ['nullable', 'string', 'max:255'],
         ]);
-
-        return response()->json(Proveedor::create($data), 201);
     }
 
     public function store(Request $request)

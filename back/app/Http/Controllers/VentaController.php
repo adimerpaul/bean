@@ -19,7 +19,7 @@ class VentaController extends Controller
         $this->authorizeAction($request, 'Ver Ventas');
         $query = $this->filteredQuery($request)->withCount('detalles')->latest('fecha');
 
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = (int) $request->input('per_page', 50);
 
         return response()->json($query->paginate($perPage === 0 ? 500 : min(max($perPage, 1), 500)));
     }
@@ -218,6 +218,14 @@ class VentaController extends Controller
         }
         if ($to = $request->date('hasta')) {
             $query->whereDate('fecha', '<=', $to);
+        }
+        $timeFrom = trim((string) $request->input('hora_desde'));
+        if (preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $timeFrom)) {
+            $query->whereTime('fecha', '>=', $timeFrom.':00');
+        }
+        $timeTo = trim((string) $request->input('hora_hasta'));
+        if (preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $timeTo)) {
+            $query->whereTime('fecha', '<=', $timeTo.':59');
         }
         if ($userId = $request->integer('user_id')) {
             $query->where('user_id', $userId);
