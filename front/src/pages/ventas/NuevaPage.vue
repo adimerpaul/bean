@@ -12,7 +12,7 @@
             <q-input ref="searchInput" v-model="search" dense outlined autofocus clearable debounce="250" class="col" placeholder="Buscar nombre, código o escanear etiqueta de balanza" @update:model-value="handleSearchInput" @keydown.enter.prevent="addExact">
               <template #prepend><q-icon name="qr_code_scanner"/></template>
             </q-input>
-            <q-select v-model="category" :options="categories" option-label="nombre" dense outlined clearable label="Categoría" style="min-width:170px" @update:model-value="loadProducts"/>
+            <q-select v-model="category" :options="categories" option-label="nombre" dense outlined clearable label="Categoría" style="min-width:170px" @update:model-value="resetProductPage"/>
           </q-card-section>
           <q-separator/>
           <q-card-section class="q-pa-sm product-grid">
@@ -23,6 +23,10 @@
                 <div class="row items-center"><span class="text-primary text-weight-bold">Bs {{money(product.precio_venta)}}{{product.unidad==='KG'?'/kg':''}}</span><q-space/><q-badge :color="product.stock_inicial>0?'positive':'negative'" :label="`Stock ${quantity(product.stock_inicial,product.unidad)} ${product.unidad}`"/></div>
               </q-card-section>
             </q-card>
+          </q-card-section>
+          <q-separator/>
+          <q-card-section v-if="productPages > 1" class="row justify-center q-pa-sm">
+            <q-pagination v-model="productPage" :max="productPages" :max-pages="7" boundary-numbers direction-links @update:model-value="loadProducts"/>
           </q-card-section>
         </q-card>
       </div>
@@ -67,6 +71,7 @@ import { printSale } from '../../addons/ventaPrint'
 import CompanyBanner from '../../components/CompanyBanner.vue'
 const {proxy}=getCurrentInstance()
 const products=ref([]),categories=ref([]),cart=ref([]),search=ref(''),category=ref(null),discount=ref(0),observation=ref(''),saving=ref(false),searchInput=ref(null)
+const productPage=ref(1),productPages=ref(1)
 const paymentType=ref('EFECTIVO'),paymentTypes=['EFECTIVO','QR','COMBINADO'],cashAmount=ref(0),qrAmount=ref(0)
 let processingBarcode=false
 const photoUrl=path=>`${proxy.$imgBase}/images/${path}`,money=v=>Number(v||0).toFixed(2)
@@ -78,12 +83,13 @@ const total=computed(()=>subtotal.value-validDiscount.value)
 const itemCount=computed(()=>cart.value.length)
 const paymentDifference=computed(()=>Number((total.value-(Number(cashAmount.value)||0)-(Number(qrAmount.value)||0)).toFixed(2)))
 watch([paymentType,total],()=>{if(paymentType.value==='EFECTIVO'){cashAmount.value=total.value;qrAmount.value=0}else if(paymentType.value==='QR'){cashAmount.value=0;qrAmount.value=total.value}else if(Number(cashAmount.value)+Number(qrAmount.value)===0){cashAmount.value=total.value;qrAmount.value=0}})
-function loadProducts(){proxy.$axios.get('/productos',{params:{q:search.value,categoria_id:category.value?.id,per_page:0}}).then(r=>products.value=r.data.data)}
-function handleSearchInput(value){if(parseScaleBarcode(value))addExact();else loadProducts()}
+function loadProducts(){proxy.$axios.get('/productos',{params:{q:search.value,categoria_id:category.value?.id,page:productPage.value,per_page:15}}).then(r=>{products.value=r.data.data;productPages.value=r.data.last_page||1})}
+function resetProductPage(){productPage.value=1;loadProducts()}
+function handleSearchInput(value){if(parseScaleBarcode(value))addExact();else resetProductPage()}
 function add(product,amount=null){const requested=Number(amount??quantityStep(product));if(Number(product.stock_inicial)<=0)return proxy.$alert.error(`${product.nombre}: stock 0. Registra primero una compra para cargar existencias.`);const item=cart.value.find(i=>i.id===product.id);const next=Number(((item?.cantidad||0)+requested).toFixed(3));if(next>Number(product.stock_inicial)+.0001)return proxy.$alert.error(`Stock insuficiente: disponible ${quantity(product.stock_inicial,product.unidad)} ${product.unidad}`);if(item){item.cantidad=next;syncLineTotal(item)}else cart.value.push({...product,cantidad:requested,total_editable:(Number(product.precio_venta)*requested).toFixed(2)});if(amount!==null)proxy.$alert.success(`${product.nombre}: ${quantity(requested,product.unidad)} ${product.unidad} leído correctamente`)}
 function parseScaleBarcode(value){const code=String(value||'').trim();if(!/^2\d{12}$/.test(code))return null;const expected=ean13CheckDigit(code.slice(0,12));if(expected!==Number(code[12]))return null;return{productCode:code.slice(0,7),weight:Number(code.slice(7,12))/1000}}
 function ean13CheckDigit(firstTwelve){const sum=[...firstTwelve].reduce((total,digit,index)=>total+Number(digit)*(index%2===0?1:3),0);return(10-(sum%10))%10}
-async function addExact(){const q=(search.value||'').trim().toUpperCase();const scale=parseScaleBarcode(q);if(scale){if(processingBarcode)return;processingBarcode=true;try{const {data}=await proxy.$axios.get('/productos',{params:{q:scale.productCode,per_page:0}});const product=data.data.find(p=>String(p.codigo)===scale.productCode||String(p.codigo_barras)===scale.productCode);if(!product)return proxy.$alert.error(`No existe un producto con código de balanza ${scale.productCode}`);if(product.unidad!=='KG')return proxy.$alert.error(`${product.nombre} debe tener unidad KG`);add(product,scale.weight);search.value='';loadProducts();return}catch(e){return proxy.$alert.error(e.response?.data?.message||'No se pudo leer la etiqueta de balanza')}finally{processingBarcode=false}}const product=products.value.find(p=>String(p.codigo||'').toUpperCase()===q||String(p.codigo_barras||'').toUpperCase()===q);if(product){add(product,isWeighted(product)?null:1);search.value='';loadProducts()}}
+async function addExact(){const q=(search.value||'').trim().toUpperCase();const scale=parseScaleBarcode(q);if(scale){if(processingBarcode)return;processingBarcode=true;try{const {data}=await proxy.$axios.get('/productos',{params:{q:scale.productCode,per_page:15}});const product=data.data.find(p=>String(p.codigo)===scale.productCode||String(p.codigo_barras)===scale.productCode);if(!product)return proxy.$alert.error(`No existe un producto con código de balanza ${scale.productCode}`);if(product.unidad!=='KG')return proxy.$alert.error(`${product.nombre} debe tener unidad KG`);add(product,scale.weight);search.value='';resetProductPage();return}catch(e){return proxy.$alert.error(e.response?.data?.message||'No se pudo leer la etiqueta de balanza')}finally{processingBarcode=false}}let product=products.value.find(p=>String(p.codigo||'').toUpperCase()===q||String(p.codigo_barras||'').toUpperCase()===q);if(!product&&q){const {data}=await proxy.$axios.get('/productos',{params:{q,per_page:15}});product=data.data.find(p=>String(p.codigo||'').toUpperCase()===q||String(p.codigo_barras||'').toUpperCase()===q)}if(product){add(product,isWeighted(product)?null:1);search.value='';resetProductPage()}}
 function changeQty(item,amount){const next=Number((Number(item.cantidad)+amount).toFixed(3));if(next<minimumQty(item))return removeItem(item);if(next>Number(item.stock_inicial)+.0001)return proxy.$alert.error('Stock insuficiente');item.cantidad=next;syncLineTotal(item)}
 function validateQty(item){let value=Number(item.cantidad)||minimumQty(item);value=isWeighted(item)?Math.round(value*1000)/1000:Math.floor(value);if(value>Number(item.stock_inicial)){item.cantidad=Number(item.stock_inicial);proxy.$alert.error('La cantidad fue ajustada al stock disponible')}else item.cantidad=Math.max(minimumQty(item),value);syncLineTotal(item)}
 function syncLineTotal(item){item.total_editable=(Number(item.precio_venta||0)*Number(item.cantidad||0)).toFixed(2)}
