@@ -124,10 +124,12 @@ class VentaController extends Controller
         $venta = DB::transaction(function () use ($request, $data) {
             $items = [];
             $subtotal = 0;
+            $requestedByProduct = [];
             foreach ($data['detalles'] as $detail) {
                 $product = Producto::lockForUpdate()->findOrFail($detail['producto_id']);
                 $quantity = round((float) $detail['cantidad'], 3);
-                abort_if((float) $product->stock_inicial + 0.0001 < $quantity, 422, "Stock insuficiente para {$product->nombre}");
+                $requestedByProduct[$product->id] = round(($requestedByProduct[$product->id] ?? 0) + $quantity, 3);
+                abort_if((float) $product->stock_inicial + 0.0001 < $requestedByProduct[$product->id], 422, "Stock insuficiente para {$product->nombre}");
                 $salePrice = round((float) $detail['precio_venta'], 4);
                 $lineSubtotal = round($salePrice * $quantity, 2);
                 $subtotal += $lineSubtotal;
