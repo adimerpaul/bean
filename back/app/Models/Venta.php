@@ -12,7 +12,7 @@ class Venta extends Model implements AuditableContract
     use Auditable, SoftDeletes;
 
     protected $fillable = [
-        'numero', 'user_id', 'usuario_nombre', 'subtotal', 'descuento',
+        'numero', 'user_id', 'usuario_nombre', 'caja', 'subtotal', 'descuento',
         'total', 'tipo_pago', 'monto_efectivo', 'monto_qr',
         'estado', 'observacion', 'fecha',
     ];

@@ -144,6 +144,7 @@ class ProductoController extends Controller
 
     private function validatedData(Request $request, ?Producto $producto = null): array
     {
+        $puedeEditarStock = (bool) $request->user()?->hasPermissionTo('Editar Stock Inicial');
         $data = $request->validate([
             'codigo' => ['required', 'string', 'max:50', Rule::unique('productos')->whereNull('deleted_at')->ignore($producto)],
             'codigo_barras' => ['nullable', 'string', 'max:100', Rule::unique('productos')->whereNull('deleted_at')->ignore($producto)],
@@ -153,7 +154,7 @@ class ProductoController extends Controller
             'unidad' => ['required', 'string', 'max:20'],
             'precio_compra' => ['required', 'numeric', 'min:0'],
             'precio_venta' => ['required', 'numeric', 'min:0'],
-            'stock_inicial' => ['required', 'numeric', 'min:0', 'decimal:0,3'],
+            'stock_inicial' => [$puedeEditarStock ? 'required' : 'nullable', 'numeric', 'min:0', 'decimal:0,3'],
         ]);
         foreach (['codigo', 'nombre', 'categoria', 'unidad'] as $field) {
             $data[$field] = isset($data[$field]) && $data[$field] !== null
@@ -161,6 +162,14 @@ class ProductoController extends Controller
         }
         if (! empty($data['categoria_id'])) {
             $data['categoria'] = Categoria::find($data['categoria_id'])?->nombre;
+        }
+        if (! $puedeEditarStock) {
+            // Sin el permiso el stock queda intacto (o en cero al crear); sólo se mueve por compras y ventas.
+            if ($producto) {
+                unset($data['stock_inicial']);
+            } else {
+                $data['stock_inicial'] = 0;
+            }
         }
 
         return $data;

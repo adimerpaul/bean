@@ -1,0 +1,170 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e43]:
+    - banner [ref=e44]:
+      - toolbar [ref=e45]:
+        - button "Menu" [ref=e46] [cursor=pointer]:
+          - img [ref=e48]: keyboard_double_arrow_left
+        - generic [ref=e49]: Bean
+        - button "Expandir" [ref=e51] [cursor=pointer]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: admin
+            - generic [ref=e59]: expand_more
+    - complementary [ref=e60]:
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - img "Bean" [ref=e68]
+          - generic [ref=e69]:
+            - generic [ref=e70]: Bean
+            - generic [ref=e71]: Ventas de pollo y alimentos
+        - generic [ref=e72]: Módulos
+        - list [ref=e73]:
+          - link "Inicio" [ref=e74] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e75]: dashboard
+          - link "Usuarios" [ref=e79] [cursor=pointer]:
+            - /url: /usuarios
+            - generic [ref=e80]: people
+          - link "Productos" [ref=e84] [cursor=pointer]:
+            - /url: /productos
+            - generic [ref=e85]: inventory_2
+          - link "Nueva venta" [ref=e89] [cursor=pointer]:
+            - /url: /ventas/nueva
+            - generic [ref=e90]: point_of_sale
+          - link "Ventas" [ref=e94] [cursor=pointer]:
+            - /url: /ventas
+            - generic [ref=e95]: receipt_long
+          - link "Nueva compra" [ref=e99] [cursor=pointer]:
+            - /url: /compras/nueva
+            - generic [ref=e100]: add_business
+          - link "Compras" [ref=e104] [cursor=pointer]:
+            - /url: /compras
+            - generic [ref=e105]: shopping_bag
+          - link "Proveedores" [ref=e109] [cursor=pointer]:
+            - /url: /proveedores
+            - generic [ref=e110]: groups
+          - link "Por vencer" [ref=e114] [cursor=pointer]:
+            - /url: /productos/por-vencer
+            - generic [ref=e115]: schedule
+          - link "Vencidos" [ref=e119] [cursor=pointer]:
+            - /url: /productos/vencidos
+            - generic [ref=e120]: event_busy
+          - link "Configuración" [ref=e124] [cursor=pointer]:
+            - /url: /configuracion
+            - generic [ref=e125]: settings
+        - generic [ref=e129]:
+          - generic [ref=e130]: Bean v1.0.0
+          - generic [ref=e131]: © 2026 Bean
+        - button "Salir" [ref=e132] [cursor=pointer]:
+          - generic [ref=e133]: logout
+    - main [ref=e138]:
+      - generic [ref=e139]:
+        - generic [ref=e140]:
+          - generic [ref=e141]: Hola, ADMINISTRADOR BEAN
+          - generic [ref=e142]: Así está funcionando Bean
+        - link "Nueva venta" [ref=e143] [cursor=pointer]:
+          - /url: /ventas/nueva
+          - generic [ref=e144]:
+            - img [ref=e145]: point_of_sale
+            - generic [ref=e146]: Nueva venta
+      - generic [ref=e147]:
+        - generic [ref=e149]:
+          - generic [ref=e150]: payments
+          - generic [ref=e153]:
+            - generic [ref=e154]: Ventas totales
+            - generic [ref=e155]: Bs 0,00
+            - generic [ref=e156]: 0 ventas
+        - generic [ref=e158]:
+          - generic [ref=e159]: trending_up
+          - generic [ref=e162]:
+            - generic [ref=e163]: Ganancia estimada
+            - generic [ref=e164]: Bs 0,00
+            - generic [ref=e165]: Ventas menos costo y descuento
+        - generic [ref=e167]:
+          - generic [ref=e168]: inventory_2
+          - generic [ref=e171]:
+            - generic [ref=e172]: Productos vendidos
+            - generic [ref=e173]: "0"
+            - generic [ref=e174]: Unidades acumuladas
+        - generic [ref=e176]:
+          - generic [ref=e177]: receipt_long
+          - generic [ref=e180]:
+            - generic [ref=e181]: Ticket promedio
+            - generic [ref=e182]: Bs 0,00
+            - generic [ref=e183]: Promedio por venta
+      - generic [ref=e184]:
+        - generic [ref=e186]:
+          - generic [ref=e187]:
+            - generic [ref=e188]: Ventas de los últimos 7 días
+            - generic [ref=e189]: Ingresos diarios en bolivianos
+          - generic [ref=e192]:
+            - 'application "area chart with 1 data series: Ventas" [ref=e193]':
+              - generic [ref=e196]:
+                - generic "Bs 6" [ref=e197]
+                - generic "Bs 5" [ref=e198]
+                - generic "Bs 4" [ref=e199]
+                - generic "Bs 3" [ref=e200]
+                - generic "Bs 2" [ref=e201]
+                - generic "Bs 1" [ref=e202]
+                - generic "Bs 0" [ref=e203]
+            - status [ref=e208]
+        - generic [ref=e210]:
+          - generic [ref=e211]:
+            - generic [ref=e212]: Formas de pago
+            - generic [ref=e213]: Distribución del total vendido
+          - generic [ref=e216]:
+            - application "donut chart with 0 data series" [ref=e217]
+            - status [ref=e219]
+      - generic [ref=e220]:
+        - generic [ref=e222]:
+          - generic [ref=e223]:
+            - generic [ref=e224]: Ventas por usuario
+            - generic [ref=e225]: Total vendido por cada cajero
+          - generic [ref=e228]:
+            - 'application "bar chart with 1 data series: Total vendido" [ref=e229]':
+              - generic [ref=e231]:
+                - generic [ref=e235]:
+                  - generic "0" [ref=e236]
+                  - generic "1" [ref=e237]
+                  - generic "2" [ref=e238]
+                  - generic "3" [ref=e239]
+                  - generic "4" [ref=e240]
+                  - generic "5" [ref=e241]
+                  - generic "6" [ref=e242]
+                  - generic "7" [ref=e243]
+                  - generic "8" [ref=e244]
+                  - generic "9" [ref=e245]
+                  - generic "10" [ref=e246]
+                - generic [ref=e248]:
+                  - generic "Bs 12" [ref=e249]
+                  - generic "Bs 11" [ref=e250]
+                  - generic "Bs 10" [ref=e251]
+                  - generic "Bs 9" [ref=e252]
+                  - generic "Bs 8" [ref=e253]
+                  - generic "Bs 7" [ref=e254]
+                  - generic "Bs 6" [ref=e255]
+                  - generic "Bs 5" [ref=e256]
+                  - generic "Bs 4" [ref=e257]
+                  - generic "Bs 3" [ref=e258]
+                  - generic "Bs 2" [ref=e259]
+                  - generic "Bs 1" [ref=e260]
+                  - generic "Bs 0" [ref=e261]
+            - status [ref=e262]
+        - generic [ref=e264]:
+          - generic [ref=e265]:
+            - generic [ref=e266]:
+              - generic [ref=e267]: Productos más vendidos
+              - generic [ref=e268]: Por cantidad de unidades
+            - link [ref=e269] [cursor=pointer]:
+              - /url: /productos
+              - img [ref=e271]: inventory_2
+          - separator [ref=e272]
+          - list [ref=e273]:
+            - listitem [ref=e274]:
+              - generic [ref=e275]: Todavía no hay productos vendidos
+  - alert [ref=e276]:
+    - generic [ref=e277]:
+      - generic [ref=e278]:
+        - img [ref=e279]: check_circle
+        - generic [ref=e280]: Bienvenido ADMINISTRADOR BEAN
+      - button [ref=e283] [cursor=pointer]:
+        - img [ref=e285]: close

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exports\VentasExport;
-use App\Models\Producto;
 use App\Models\Lote;
+use App\Models\Producto;
 use App\Models\User;
 use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -41,7 +41,7 @@ class VentaController extends Controller
 
     public function dashboard(Request $request)
     {
-        $this->authorizeAction($request, 'Ver Ventas');
+        $this->authorizeAction($request, 'Ver Estadísticas');
         $sales = Venta::where('estado', 'COMPLETADA');
         $total = (float) (clone $sales)->sum('total');
         $count = (clone $sales)->count();
@@ -111,6 +111,7 @@ class VentaController extends Controller
         $this->authorizeAction($request, 'Crear Ventas');
         $data = $request->validate([
             'descuento' => ['nullable', 'numeric', 'min:0'],
+            'caja' => ['nullable', 'integer', 'between:1,5'],
             'tipo_pago' => ['required', 'in:EFECTIVO,QR,COMBINADO'],
             'monto_efectivo' => ['nullable', 'numeric', 'min:0'],
             'monto_qr' => ['nullable', 'numeric', 'min:0'],
@@ -121,7 +122,9 @@ class VentaController extends Controller
             'detalles.*.precio_venta' => ['required', 'numeric', 'min:0'],
         ]);
 
-        $venta = DB::transaction(function () use ($request, $data) {
+        $puedeCambiarPrecio = (bool) $request->user()->hasPermissionTo('Modificar Precio en Venta');
+
+        $venta = DB::transaction(function () use ($request, $data, $puedeCambiarPrecio) {
             $items = [];
             $subtotal = 0;
             $requestedByProduct = [];
@@ -131,6 +134,9 @@ class VentaController extends Controller
                 $requestedByProduct[$product->id] = round(($requestedByProduct[$product->id] ?? 0) + $quantity, 3);
                 abort_if((float) $product->stock_inicial + 0.0001 < $requestedByProduct[$product->id], 422, "Stock insuficiente para {$product->nombre}");
                 $salePrice = round((float) $detail['precio_venta'], 4);
+                // Sin el permiso el precio siempre es el del catálogo; el frontend lo bloquea, esto cubre el envío directo a la API.
+                abort_if(! $puedeCambiarPrecio && abs($salePrice - (float) $product->precio_venta) > 0.0001, 403,
+                    "No tiene permiso para modificar el precio de venta de {$product->nombre}");
                 $lineSubtotal = round($salePrice * $quantity, 2);
                 $subtotal += $lineSubtotal;
                 $items[] = [$product, $quantity, $salePrice, $lineSubtotal];
@@ -146,6 +152,7 @@ class VentaController extends Controller
             $sale = Venta::create([
                 'user_id' => $request->user()->id,
                 'usuario_nombre' => $request->user()->name,
+                'caja' => (int) ($data['caja'] ?? 1),
                 'subtotal' => $subtotal,
                 'descuento' => $discount,
                 'total' => $total,
@@ -229,6 +236,9 @@ class VentaController extends Controller
         }
         if ($userId = $request->integer('user_id')) {
             $query->where('user_id', $userId);
+        }
+        if ($caja = $request->integer('caja')) {
+            $query->where('caja', $caja);
         }
 
         return $query;

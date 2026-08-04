@@ -1,0 +1,261 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - banner [ref=f1e4]:
+      - toolbar [ref=f1e5]:
+        - button "Menu" [ref=f1e6] [cursor=pointer]:
+          - img [ref=f1e8]: keyboard_double_arrow_left
+        - generic [ref=f1e9]: Micromarket Bean
+        - button "Expandir" [ref=f1e11] [cursor=pointer]:
+          - generic [ref=f1e12]:
+            - generic [ref=f1e13]: admin
+            - generic [ref=f1e19]: expand_more
+    - complementary [ref=f1e20]:
+      - generic [ref=f1e25]:
+        - generic [ref=f1e26]:
+          - img "Micromarket Bean" [ref=f1e28]
+          - generic [ref=f1e29]:
+            - generic [ref=f1e30]: Micromarket Bean
+            - generic [ref=f1e31]: Ventas de pollo y alimentos
+        - generic [ref=f1e32]: Módulos
+        - list [ref=f1e33]:
+          - link "Inicio" [ref=f1e34] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f1e35]: dashboard
+          - link "Usuarios" [ref=f1e39] [cursor=pointer]:
+            - /url: /usuarios
+            - generic [ref=f1e40]: people
+          - link "Productos" [ref=f1e44] [cursor=pointer]:
+            - /url: /productos
+            - generic [ref=f1e45]: inventory_2
+          - link "Nueva venta" [ref=f1e49] [cursor=pointer]:
+            - /url: /ventas/nueva
+            - generic [ref=f1e50]: point_of_sale
+          - link "Ventas" [ref=f1e54] [cursor=pointer]:
+            - /url: /ventas
+            - generic [ref=f1e55]: receipt_long
+          - link "Nueva compra" [ref=f1e59] [cursor=pointer]:
+            - /url: /compras/nueva
+            - generic [ref=f1e60]: add_business
+          - link "Compras" [ref=f1e64] [cursor=pointer]:
+            - /url: /compras
+            - generic [ref=f1e65]: shopping_bag
+          - link "Proveedores" [ref=f1e69] [cursor=pointer]:
+            - /url: /proveedores
+            - generic [ref=f1e70]: groups
+          - link "Nueva baja" [ref=f1e74] [cursor=pointer]:
+            - /url: /bajas/nueva
+            - generic [ref=f1e75]: remove_circle_outline
+          - link "Bajas" [ref=f1e79] [cursor=pointer]:
+            - /url: /bajas
+            - generic [ref=f1e80]: delete_forever
+          - link "Por vencer" [ref=f1e84] [cursor=pointer]:
+            - /url: /productos/por-vencer
+            - generic [ref=f1e85]: schedule
+          - link "Vencidos" [ref=f1e89] [cursor=pointer]:
+            - /url: /productos/vencidos
+            - generic [ref=f1e90]: event_busy
+          - link "Configuración" [ref=f1e94] [cursor=pointer]:
+            - /url: /configuracion
+            - generic [ref=f1e95]: settings
+        - generic [ref=f1e99]:
+          - generic [ref=f1e100]: Bean v1.0.0
+          - generic [ref=f1e101]: © 2026 Bean
+        - button "Salir" [ref=f1e102] [cursor=pointer]:
+          - generic [ref=f1e103]: logout
+    - main [ref=f1e108]:
+      - generic [ref=f1e109]:
+        - generic [ref=f1e110]:
+          - generic [ref=f1e111]: Nueva baja
+          - generic [ref=f1e112]: Descarga productos del inventario indicando el motivo
+        - link "Ver bajas" [ref=f1e113] [cursor=pointer]:
+          - /url: /bajas
+          - generic [ref=f1e114]:
+            - img [ref=f1e115]: list_alt
+            - generic [ref=f1e116]: Ver bajas
+      - generic [ref=f1e117]:
+        - generic [ref=f1e119]:
+          - generic [ref=f1e120]:
+            - generic [ref=f1e123]:
+              - generic [ref=f1e124]: search
+              - textbox [ref=f1e611]:
+                - /placeholder: Buscar producto por nombre o código
+            - generic [ref=f1e130] [cursor=pointer]:
+              - generic [ref=f1e131]:
+                - generic: Categoría
+                - combobox "Categoría" [ref=f1e133]
+              - generic [ref=f1e134]: arrow_drop_down
+          - separator [ref=f1e136]
+          - generic [ref=f1e612]:
+            - generic [ref=f1e616] [cursor=pointer]:
+              - generic [ref=f1e617]: ABLANDADOR DE CARNE SAZON KORR
+              - generic [ref=f1e618]:
+                - generic [ref=f1e619]: Bs 1.20
+                - status "Stock 23 UNIDAD" [ref=f1e620]
+            - generic [ref=f1e624] [cursor=pointer]:
+              - generic [ref=f1e625]: ACEITE FINO OMEGA 3 DE 900 ML
+              - generic [ref=f1e626]:
+                - generic [ref=f1e627]: Bs 18.00
+                - status "Stock 6 UNIDAD" [ref=f1e628]
+            - generic [ref=f1e632] [cursor=pointer]:
+              - generic [ref=f1e633]: ADES MANZANA EN CARTON DE 1 LITRO EMBOL
+              - generic [ref=f1e634]:
+                - generic [ref=f1e635]: Bs 11.00
+                - status "Stock 9 UNIDAD" [ref=f1e636]
+            - generic [ref=f1e640] [cursor=pointer]:
+              - generic [ref=f1e641]: AGUA EN SACHET
+              - generic [ref=f1e642]:
+                - generic [ref=f1e643]: Bs 0.39
+                - status "Stock 102 UNIDAD" [ref=f1e644]
+            - generic [ref=f1e648] [cursor=pointer]:
+              - generic [ref=f1e649]: AGUA VITAL CHIKI DE 350 ML EMBOL
+              - generic [ref=f1e650]:
+                - generic [ref=f1e651]: Bs 2.10
+                - status "Stock 9 UNIDAD" [ref=f1e652]
+            - generic [ref=f1e656] [cursor=pointer]:
+              - generic [ref=f1e657]: AGUA VITAL DE 2 L EMBOL
+              - generic [ref=f1e658]:
+                - generic [ref=f1e659]: Bs 6.00
+                - status "Stock 12 UNIDAD" [ref=f1e660]
+            - generic [ref=f1e664] [cursor=pointer]:
+              - generic [ref=f1e665]: AGUA VITAL DE 3 L NR EMBOL
+              - generic [ref=f1e666]:
+                - generic [ref=f1e667]: Bs 7.70
+                - status "Stock 5 UNIDAD" [ref=f1e668]
+            - generic [ref=f1e672] [cursor=pointer]:
+              - generic [ref=f1e673]: AGUA VITAL DE 600 ML EMBOL
+              - generic [ref=f1e674]:
+                - generic [ref=f1e675]: Bs 4.00
+                - status "Stock 10 UNIDAD" [ref=f1e676]
+            - generic [ref=f1e680] [cursor=pointer]:
+              - generic [ref=f1e681]: AGUA VITAL DE 990 ML EMBOL
+              - generic [ref=f1e682]:
+                - generic [ref=f1e683]: Bs 5.33
+                - status "Stock 12 UNIDAD" [ref=f1e684]
+            - generic [ref=f1e688] [cursor=pointer]:
+              - generic [ref=f1e689]: AJI PANCA AMARILLO SIN PICANTE DE 8 GRS
+              - generic [ref=f1e690]:
+                - generic [ref=f1e691]: Bs 0.39
+                - status "Stock 115 UNIDAD" [ref=f1e692]
+            - generic [ref=f1e696] [cursor=pointer]:
+              - generic [ref=f1e697]: AJI PANCA ROJO PICANTE S. RIICC
+              - generic [ref=f1e698]:
+                - generic [ref=f1e699]: Bs 0.39
+                - status "Stock 82 UNIDAD" [ref=f1e700]
+            - generic [ref=f1e704] [cursor=pointer]:
+              - generic [ref=f1e705]: AJI PANCA ROJO SIN PICANTE S.RIICC
+              - generic [ref=f1e706]:
+                - generic [ref=f1e707]: Bs 0.39
+                - status "Stock 79 UNIDAD" [ref=f1e708]
+            - generic [ref=f1e712] [cursor=pointer]:
+              - generic [ref=f1e713]: AJINOMEN DE CARNE 80 GRS EN SACHET
+              - generic [ref=f1e714]:
+                - generic [ref=f1e715]: Bs 5.83
+                - status "Stock 24 UNIDAD" [ref=f1e716]
+            - generic [ref=f1e720] [cursor=pointer]:
+              - generic [ref=f1e721]: AJINOMEN DE GALLINA PICANTE 80 GRS EN SACHET
+              - generic [ref=f1e722]:
+                - generic [ref=f1e723]: Bs 5.83
+                - status "Stock 29 UNIDAD" [ref=f1e724]
+            - generic [ref=f1e728] [cursor=pointer]:
+              - generic [ref=f1e729]: AJINOMEN DE POLLO 80 GRS EN SACHET
+              - generic [ref=f1e730]:
+                - generic [ref=f1e731]: Bs 5.83
+                - status "Stock 8 UNIDAD" [ref=f1e732]
+            - generic [ref=f1e736] [cursor=pointer]:
+              - generic [ref=f1e737]: AJO EN POLVO DE 10 GR S.RIICC
+              - generic [ref=f1e738]:
+                - generic [ref=f1e739]: Bs 0.83
+                - status "Stock 40 UNIDAD" [ref=f1e740]
+            - generic [ref=f1e744] [cursor=pointer]:
+              - generic [ref=f1e745]: ALAS DE POLLO AGRANEL SOFIA
+              - generic [ref=f1e746]:
+                - generic [ref=f1e747]: Bs 35.00
+                - status "Stock 0 UNIDAD" [ref=f1e748]
+            - generic [ref=f1e752] [cursor=pointer]:
+              - generic [ref=f1e753]: ALBONDIGAS DE RES 15 UND SOFIA
+              - generic [ref=f1e754]:
+                - generic [ref=f1e755]: Bs 28.70
+                - status "Stock 0 UNIDAD" [ref=f1e756]
+            - generic [ref=f1e760] [cursor=pointer]:
+              - generic [ref=f1e761]: ALFAJOR GENIO CHOCOLATE 60 GR
+              - generic [ref=f1e762]:
+                - generic [ref=f1e763]: Bs 2.29
+                - status "Stock 5 UNIDAD" [ref=f1e764]
+            - generic [ref=f1e768] [cursor=pointer]:
+              - generic [ref=f1e769]: ALFAJOR GENIO CHOCOLATE BLANCO 60 GR
+              - generic [ref=f1e770]:
+                - generic [ref=f1e771]: Bs 2.29
+                - status "Stock 3 UNIDAD" [ref=f1e772]
+          - separator [ref=f1e298]
+          - generic [ref=f1e299]:
+            - generic [ref=f1e300]: 1–20 de 538 productos
+            - navigation [ref=f1e301]:
+              - generic [ref=f1e302]:
+                - button "Página anterior" [disabled] [ref=f1e303]:
+                  - img [ref=f1e305]: keyboard_arrow_left
+                - button "1" [ref=f1e306] [cursor=pointer]
+                - generic [ref=f1e309]:
+                  - button "2" [ref=f1e310] [cursor=pointer]
+                  - button "3" [ref=f1e313] [cursor=pointer]
+                  - button "4" [ref=f1e316] [cursor=pointer]
+                  - button "5" [ref=f1e319] [cursor=pointer]
+                - button "6" [ref=f1e322] [cursor=pointer]:
+                  - generic [ref=f1e323]: …
+                - button "27" [ref=f1e773] [cursor=pointer]
+                - button "Próxima página" [ref=f1e328] [cursor=pointer]:
+                  - img [ref=f1e330]: keyboard_arrow_right
+        - generic [ref=f1e332]:
+          - generic [ref=f1e333]:
+            - generic [ref=f1e334]:
+              - generic [ref=f1e335]: delete_forever
+              - generic [ref=f1e336]: Productos a dar de baja
+              - button "Vaciar" [ref=f1e774] [cursor=pointer]:
+                - generic [ref=f1e775]:
+                  - img [ref=f1e776]: delete_sweep
+                  - generic [ref=f1e777]: Vaciar
+              - status "1" [ref=f1e778]
+            - generic [ref=f1e340] [cursor=pointer]:
+              - generic [ref=f1e341]: report_problem
+              - generic [ref=f1e343]:
+                - generic: Motivo de la baja *
+                - combobox "Motivo de la baja *" [expanded] [active] [ref=f1e345]
+              - generic [ref=f1e346]: arrow_drop_down
+          - separator [ref=f1e348]
+          - list [ref=f1e779]:
+            - listitem [ref=f1e780]:
+              - generic [ref=f1e785]:
+                - generic [ref=f1e786]: AGUA VITAL DE 3 L NR EMBOL
+                - generic [ref=f1e787]:
+                  - generic [ref=f1e788]:
+                    - generic [ref=f1e789]: Cantidad
+                    - spinbutton "Cantidad" [ref=f1e790]: "3"
+                  - generic [ref=f1e791]:
+                    - generic [ref=f1e792]: Costo Bs
+                    - textbox "Costo Bs" [ref=f1e793]: "23.10"
+                  - generic [ref=f1e794]:
+                    - button [ref=f1e795] [cursor=pointer]:
+                      - img [ref=f1e797]: remove
+                    - button [ref=f1e798] [cursor=pointer]:
+                      - img [ref=f1e800]: add
+                    - button [ref=f1e801] [cursor=pointer]:
+                      - img [ref=f1e803]: delete
+          - separator [ref=f1e352]
+          - generic [ref=f1e353]:
+            - generic [ref=f1e357]:
+              - generic: Observación
+              - textbox "Observación" [ref=f1e358]
+            - generic [ref=f1e359]:
+              - generic [ref=f1e360]: Costo de la baja
+              - generic [ref=f1e361]: Bs 23.10
+          - button "Registrar baja" [disabled] [ref=f1e363]:
+            - generic [ref=f1e364]:
+              - img [ref=f1e365]: save
+              - generic [ref=f1e366]: Registrar baja
+  - listbox [ref=f1e804]:
+    - generic [ref=f1e805]:
+      - option "Baja por calidad" [ref=f1e806] [cursor=pointer]
+      - option "Baja por merma" [ref=f1e809] [cursor=pointer]
+      - option "Baja por uso de tienda" [ref=f1e812] [cursor=pointer]
+      - option "Baja por cruce" [ref=f1e815] [cursor=pointer]
+      - option "Baja por pérdida" [ref=f1e818] [cursor=pointer]
+      - option "Baja por vencimiento" [ref=f1e821] [cursor=pointer]

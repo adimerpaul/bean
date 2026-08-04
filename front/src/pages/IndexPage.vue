@@ -1,11 +1,11 @@
 <template>
   <q-page class="dashboard q-pa-sm">
-    <div class="hero q-mb-sm">
-      <div><div class="text-h5 text-weight-bold">Hola, {{ $store.user.name || $store.user.username }}</div><div class="text-body2 hero-subtitle">Así está funcionando Bean</div></div>
-      <q-space/><q-btn v-if="$store.hasPermission('Crear Ventas')" unelevated color="white" text-color="primary" icon="point_of_sale" label="Nueva venta" no-caps to="/ventas/nueva"/>
-    </div>
+    <template v-if="canSeeStats">
+      <div class="hero q-mb-sm">
+        <div><div class="text-h5 text-weight-bold">Hola, {{ $store.user.name || $store.user.username }}</div><div class="text-body2 hero-subtitle">Así está funcionando Bean</div></div>
+        <q-space/><q-btn v-if="$store.hasPermission('Crear Ventas')" unelevated color="white" text-color="primary" icon="point_of_sale" label="Nueva venta" no-caps to="/ventas/nueva"/>
+      </div>
 
-    <template v-if="$store.hasPermission('Ver Ventas')">
       <div class="kpi-grid q-mb-sm">
         <q-card v-for="item in kpis" :key="item.label" flat bordered class="kpi-card">
           <q-card-section class="row items-center q-pa-sm">
@@ -31,16 +31,28 @@
         </q-card></div>
       </div>
     </template>
-    <q-card v-else flat bordered class="q-pa-lg text-center"><q-icon name="dashboard" size="60px" color="primary"/><div class="text-h6">Bienvenido a Bean</div><div class="text-grey-7">Selecciona una opción del menú lateral.</div></q-card>
+
+    <!-- Sin permiso "Ver Estadísticas": solo la identidad de la empresa, ningún importe ni gráfico. -->
+    <div v-else class="brand-screen">
+      <div class="brand-card">
+        <img v-if="company.logo_url" :src="company.logo_url" class="brand-logo" alt="Logo"/>
+        <q-icon v-else name="storefront" size="96px" color="primary" class="q-mb-sm"/>
+        <div class="text-h5 text-weight-bold">{{company.nombre_empresa||'Bean'}}</div>
+        <div class="text-body2 text-grey-7 q-mt-xs">{{company.direccion||'Dirección no registrada'}}</div>
+        <div class="text-caption text-grey-6 q-mt-xs">Tel. {{company.telefono||'—'}}<span v-if="company.nit"> · NIT {{company.nit}}</span></div>
+      </div>
+    </div>
   </q-page>
 </template>
 
 <script setup>
-import { computed, getCurrentInstance, onMounted, reactive } from 'vue'
+import { computed, getCurrentInstance, onMounted, reactive, ref } from 'vue'
 import VueApexCharts from 'vue3-apexcharts'
 const apexchart=VueApexCharts
 const {proxy}=getCurrentInstance()
 const data=reactive({indicadores:{ventas:0,ganancia:0,productos:0,cantidad_ventas:0,ticket_promedio:0},diario:[],usuarios:[],pagos:[],productos_top:[]})
+const canSeeStats=computed(()=>proxy.$store.hasPermission('Ver Estadísticas'))
+const company=ref(JSON.parse(localStorage.getItem('empresaBean')||'{}'))
 const money=v=>Number(v||0).toLocaleString('es-BO',{minimumFractionDigits:2,maximumFractionDigits:2})
 const photoUrl=path=>`${proxy.$imgBase}/images/${path}`
 const kpis=computed(()=>[
@@ -56,12 +68,15 @@ const paymentSeries=computed(()=>data.pagos.map(i=>Number(i.total)))
 const paymentOptions=computed(()=>({...baseChart,labels:data.pagos.map(i=>i.nombre),colors:['#21ba45','#2196f3','#9c27b0'],legend:{position:'bottom'},plotOptions:{pie:{donut:{size:'66%',labels:{show:true,total:{show:true,label:'Total',formatter:()=>`Bs ${money(data.indicadores.ventas)}`}}}}}}))
 const userSeries=computed(()=>[{name:'Total vendido',data:data.usuarios.map(i=>Number(i.total))}])
 const userOptions=computed(()=>({...baseChart,chart:{...baseChart.chart,type:'bar'},colors:['#fb8c00'],plotOptions:{bar:{borderRadius:6,horizontal:true,barHeight:'58%'}},xaxis:{categories:data.usuarios.map(i=>i.nombre),labels:{formatter:v=>`Bs ${Number(v).toFixed(0)}`}}}))
-onMounted(()=>{if(proxy.$store.hasPermission('Ver Ventas'))proxy.$axios.get('/dashboard').then(r=>Object.assign(data,r.data)).catch(e=>proxy.$alert.error(e.response?.data?.message||'No se pudo cargar el panel'))})
+onMounted(()=>{if(canSeeStats.value)return proxy.$axios.get('/dashboard').then(r=>Object.assign(data,r.data)).catch(e=>proxy.$alert.error(e.response?.data?.message||'No se pudo cargar el panel'))
+  // Sin permiso no se pide /dashboard (respondería 403); se refresca la ficha de la empresa para el logo.
+  proxy.$axios.get('/configuracion').then(({data:info})=>{info.logo_url=info.logo?`${proxy.$imgBase}/images/${info.logo}`:null;company.value=info;localStorage.setItem('empresaBean',JSON.stringify(info))}).catch(()=>{})})
 </script>
 
 <style scoped>
 .dashboard{background:linear-gradient(180deg,#fff4f3 0,#faf8f8 260px)}.hero{display:flex;align-items:center;padding:18px 22px;border-radius:14px;color:#fff;background:linear-gradient(120deg,#222222,#f57c00 60%,#ffb300);box-shadow:0 8px 24px rgba(183,28,28,.22)}.hero-subtitle{color:rgba(255,255,255,.82)}
 .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.kpi-card,.chart-card{border-radius:12px;background:rgba(255,255,255,.96)}.kpi-icon{color:#fff}.kpi-primary{background:linear-gradient(135deg,#f57c00,#ffb300)}.kpi-positive{background:linear-gradient(135deg,#1b8f4d,#4caf50)}.kpi-deep-orange{background:linear-gradient(135deg,#e65100,#ff9800)}.kpi-purple{background:linear-gradient(135deg,#6a1b9a,#ab47bc)}
+.brand-screen{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 100px)}.brand-card{text-align:center;padding:38px 34px;border-radius:16px;background:rgba(255,255,255,.96);border:1px solid #ffe0b2;box-shadow:0 8px 26px rgba(183,28,28,.10);max-width:420px}.brand-logo{width:150px;max-height:150px;object-fit:contain;margin-bottom:14px}
 .top-list{max-height:310px;overflow:auto}.rank{position:absolute;margin-left:-7px;margin-top:-5px;width:18px;height:18px;border-radius:50%;background:#f57c00;color:white;font-size:10px;display:flex;align-items:center;justify-content:center;z-index:1}
 @media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:500px){.hero{padding:14px}.hero .q-btn{display:none}.kpi-grid{grid-template-columns:1fr}.kpi-card .text-h6{font-size:1.1rem}}
 </style>

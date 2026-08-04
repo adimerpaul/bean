@@ -1,0 +1,2 @@
+[      92ms] [INFO] [Quasar] Running SPA. @ http://localhost:9001/.quasar/dev-spa/client-entry.js?t=1785827817444:46
+[   12597ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://localhost:8000/api/dashboard:0

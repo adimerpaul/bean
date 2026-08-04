@@ -1,0 +1,26 @@
+- main [ref=e5]:
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - img "Bean" [ref=e10]
+      - generic [ref=e11]: Bean · Ventas e inventario
+    - separator [ref=e12]
+    - generic [ref=e14]:
+      - generic [ref=e15]: Iniciar sesión
+      - generic [ref=e16]: Accede al panel usando tus credenciales.
+      - generic [ref=e17]: Nombre de usuario
+      - generic [ref=e20]:
+        - generic [ref=e21]: account_circle
+        - textbox [ref=e24]:
+          - /placeholder: Nombre de usuario
+          - text: admin
+      - generic [ref=e26]: Contraseña
+      - generic [ref=e29]:
+        - generic [ref=e30]: lock
+        - textbox [ref=e33]:
+          - /placeholder: Contraseña
+          - text: admin
+        - generic [ref=e34]: visibility_off
+      - button [ref=e37]
+    - generic [ref=e40]:
+      - separator [ref=e41]
+      - generic [ref=e42]: © 2026 Bean. Todos los derechos reservados.

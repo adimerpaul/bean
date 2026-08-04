@@ -56,6 +56,8 @@ No se usan roles ni middleware `can:`. Cada controlador tiene un método privado
 
 En el frontend el mismo string controla el menú y los botones: `proxy.$store.hasPermission('Ver Ventas')`. La lista de ítems del menú vive en `front/src/layouts/MainLayout.vue` (`links[].can`).
 
+La tabla `permissions` tiene dos columnas propias del proyecto: **`grupo`** (default `Otros`) y **`orden`**. Con eso el formulario de `usuarios/IndexPage.vue` arma las cajas de permisos leyendo lo que devuelve `GET /permissions` — no hay lista de grupos en el frontend. **Todo permiso nuevo debe fijar `grupo` y `orden` en su migración**; si se omite cae en "Otros", visible pero fuera de lugar. Un permiso que no se renderiza es peligroso: `PUT /users/{id}/permissions` reemplaza la lista completa con lo marcado en pantalla, así que al guardar un usuario se pierde lo que no se dibujó.
+
 ## Inventario: stock + lotes FIFO por vencimiento
 
 `productos.stock_inicial` es el stock **actual** (nombre heredado), `decimal(12,3)` para soportar productos por peso. Además existe `lotes` con `cantidad_disponible` por lote y fecha de vencimiento. Los dos se mueven en paralelo y hay que mantenerlos consistentes:
@@ -64,6 +66,7 @@ En el frontend el mismo string controla el menú y los botones: `proxy.$store.ha
 - **Venta** (`VentaController@store`): valida stock con `lockForUpdate`, decrementa `stock_inicial` y consume lotes en orden **FIFO por `fecha_vencimiento`** (los `NULL` al final), registrando la asignación en la tabla pivote `venta_detalle_lotes`.
 - **Anulación de venta**: devuelve stock y repone exactamente los lotes registrados en `venta_detalle_lotes`.
 - **Anulación de compra**: falla con 422 si el stock ya se consumió; si no, descuenta y borra los lotes de esa compra.
+- **Baja** (`BajaController@store`): igual que una venta pero sin cobro — descuenta `stock_inicial` y consume lotes (el lote elegido primero si se envía `lote_id`, si no FIFO), guardando la asignación en `baja_detalle_lotes`. Su anulación repone stock y lotes. El costo se valora con `precio_compra` del producto, no con precio de venta.
 
 Todo esto va dentro de `DB::transaction` con `Producto::lockForUpdate()`. Cualquier operación nueva que toque existencias debe hacer lo mismo.
 

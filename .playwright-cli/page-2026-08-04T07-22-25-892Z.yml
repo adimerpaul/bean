@@ -1,0 +1,193 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - banner [ref=f3e4]:
+      - toolbar [ref=f3e5]:
+        - button "Menu" [ref=f3e6] [cursor=pointer]:
+          - img [ref=f3e8]: keyboard_double_arrow_left
+        - generic [ref=f3e9]: Bean
+        - button "Expandir" [ref=f3e11] [cursor=pointer]:
+          - generic [ref=f3e12]:
+            - generic [ref=f3e13]: admin
+            - generic [ref=f3e19]: expand_more
+    - complementary [ref=f3e20]:
+      - generic [ref=f3e25]:
+        - generic [ref=f3e26]:
+          - img "Bean" [ref=f3e28]
+          - generic [ref=f3e29]:
+            - generic [ref=f3e30]: Bean
+            - generic [ref=f3e31]: Ventas de pollo y alimentos
+        - generic [ref=f3e32]: Módulos
+        - list [ref=f3e33]:
+          - link "Inicio" [ref=f3e34] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f3e35]: dashboard
+          - link "Usuarios" [ref=f3e39] [cursor=pointer]:
+            - /url: /usuarios
+            - generic [ref=f3e40]: people
+          - link "Productos" [ref=f3e44] [cursor=pointer]:
+            - /url: /productos
+            - generic [ref=f3e45]: inventory_2
+          - link "Nueva venta" [ref=f3e49] [cursor=pointer]:
+            - /url: /ventas/nueva
+            - generic [ref=f3e50]: point_of_sale
+          - link "Ventas" [ref=f3e54] [cursor=pointer]:
+            - /url: /ventas
+            - generic [ref=f3e55]: receipt_long
+          - link "Nueva compra" [ref=f3e59] [cursor=pointer]:
+            - /url: /compras/nueva
+            - generic [ref=f3e60]: add_business
+          - link "Compras" [ref=f3e64] [cursor=pointer]:
+            - /url: /compras
+            - generic [ref=f3e65]: shopping_bag
+          - link "Proveedores" [ref=f3e69] [cursor=pointer]:
+            - /url: /proveedores
+            - generic [ref=f3e70]: groups
+          - link "Por vencer" [ref=f3e74] [cursor=pointer]:
+            - /url: /productos/por-vencer
+            - generic [ref=f3e75]: schedule
+          - link "Vencidos" [ref=f3e79] [cursor=pointer]:
+            - /url: /productos/vencidos
+            - generic [ref=f3e80]: event_busy
+          - link "Configuración" [ref=f3e84] [cursor=pointer]:
+            - /url: /configuracion
+            - generic [ref=f3e85]: settings
+        - generic [ref=f3e89]:
+          - generic [ref=f3e90]: Bean v1.0.0
+          - generic [ref=f3e91]: © 2026 Bean
+        - button "Salir" [ref=f3e92] [cursor=pointer]:
+          - generic [ref=f3e93]: logout
+    - main [ref=f3e98]:
+      - generic [ref=f3e99]:
+        - generic [ref=f3e100]:
+          - generic [ref=f3e101]: Usuarios
+          - generic [ref=f3e102]: Accesos y permisos
+        - button "Nuevo" [ref=f3e103] [cursor=pointer]:
+          - generic [ref=f3e104]:
+            - img [ref=f3e105]: person_add
+            - generic [ref=f3e106]: Nuevo
+      - generic [ref=f3e108]:
+        - generic [ref=f3e112]:
+          - generic [ref=f3e113]: search
+          - textbox [ref=f3e116]:
+            - /placeholder: Buscar usuario
+        - table [ref=f3e118]:
+          - rowgroup [ref=f3e119]:
+            - row [ref=f3e120]:
+              - columnheader "Acciones" [ref=f3e121]
+              - columnheader "Usuario" [ref=f3e122]
+              - columnheader "Correo" [ref=f3e123]
+              - columnheader "Celular" [ref=f3e124]
+              - columnheader "CI" [ref=f3e125]
+              - columnheader "Permisos" [ref=f3e126]
+          - rowgroup [ref=f3e132]:
+            - row [ref=f3e133]:
+              - cell [ref=f3e134]:
+                - button "Expandir" [ref=f3e135] [cursor=pointer]:
+                  - img [ref=f3e137]: more_vert
+              - cell "ADMINISTRADOR BEAN @admin" [ref=f3e139]:
+                - generic [ref=f3e140]:
+                  - generic [ref=f3e141]: person
+                  - generic [ref=f3e144]:
+                    - generic [ref=f3e145]: ADMINISTRADOR BEAN
+                    - generic [ref=f3e146]: "@admin"
+              - cell "admin@bean.bo" [ref=f3e147]
+              - cell [ref=f3e148]
+              - cell "00000000" [ref=f3e149]
+              - cell [ref=f3e150]:
+                - status "16 permisos" [ref=f3e151]
+        - generic [ref=f3e130]:
+          - generic [ref=f3e152]:
+            - generic [ref=f3e153]: "Filas por página:"
+            - generic [ref=f3e156] [cursor=pointer]:
+              - generic [ref=f3e158]:
+                - generic [ref=f3e159]: "10"
+                - combobox "10" [ref=f3e160]
+              - generic [ref=f3e161]: arrow_drop_down
+          - generic [ref=f3e163]: 1-1 de 1
+  - generic:
+    - dialog:
+      - generic [ref=f3e167]:
+        - generic [ref=f3e168]:
+          - generic [ref=f3e169]: manage_accounts
+          - generic [ref=f3e172]:
+            - generic [ref=f3e173]: Nuevo usuario
+            - generic [ref=f3e174]: Datos personales, imagen y permisos
+          - button [ref=f3e175] [cursor=pointer]:
+            - img [ref=f3e177]: close
+        - separator [ref=f3e178]
+        - generic [ref=f3e179]:
+          - generic [ref=f3e180]:
+            - generic [ref=f3e181]:
+              - button "Elegir" [ref=f3e182] [cursor=pointer]:
+                - generic [ref=f3e183]: person
+                - generic [ref=f3e186]:
+                  - generic [ref=f3e187]: photo_camera
+                  - generic [ref=f3e188]: Elegir
+              - generic [ref=f3e189]: Clic o arrastra una imagen
+            - generic [ref=f3e190]:
+              - generic [ref=f3e191]:
+                - generic [ref=f3e192]: badge
+                - text: Información
+              - generic [ref=f3e193]:
+                - generic [ref=f3e197]:
+                  - generic: Nombre completo *
+                  - textbox "Nombre completo *" [ref=f3e198]
+                - generic [ref=f3e202]:
+                  - generic: Usuario *
+                  - textbox "Usuario *" [ref=f3e203]
+                - generic [ref=f3e207]:
+                  - generic: CI
+                  - textbox "CI" [ref=f3e208]
+                - generic [ref=f3e212]:
+                  - generic: Correo
+                  - textbox "Correo" [ref=f3e213]
+                - generic [ref=f3e217]:
+                  - generic: Celular
+                  - textbox "Celular" [ref=f3e218]
+                - generic [ref=f3e222]:
+                  - generic: Contraseña *
+                  - textbox "Contraseña *" [ref=f3e223]: "123456"
+          - separator [ref=f3e224]
+          - generic [ref=f3e225]:
+            - generic [ref=f3e226]:
+              - generic [ref=f3e227]: admin_panel_settings
+              - text: Permisos
+            - button "Todos" [ref=f3e228] [cursor=pointer]
+            - button "Ninguno" [ref=f3e231] [cursor=pointer]
+          - generic [ref=f3e234]:
+            - generic [ref=f3e235]:
+              - generic [ref=f3e236]: Usuarios
+              - checkbox "Crear" [ref=f3e237] [cursor=pointer]
+              - checkbox "Editar" [ref=f3e243] [cursor=pointer]
+              - checkbox "Eliminar" [ref=f3e249] [cursor=pointer]
+              - checkbox "Gestionar Permisos" [ref=f3e255] [cursor=pointer]
+              - checkbox "Ver" [ref=f3e261] [cursor=pointer]
+            - generic [ref=f3e267]:
+              - generic [ref=f3e268]: Productos
+              - checkbox "Crear" [ref=f3e269] [cursor=pointer]
+              - checkbox "Editar" [ref=f3e275] [cursor=pointer]
+              - checkbox "Editar Stock Inicial" [ref=f3e281] [cursor=pointer]
+              - checkbox "Eliminar" [ref=f3e287] [cursor=pointer]
+              - checkbox "Ver" [ref=f3e293] [cursor=pointer]
+            - generic [ref=f3e299]:
+              - generic [ref=f3e300]: Ventas
+              - checkbox "Anular" [ref=f3e301] [cursor=pointer]
+              - checkbox "Crear" [ref=f3e307] [cursor=pointer]
+              - checkbox "Ver" [ref=f3e313] [cursor=pointer]
+            - generic [ref=f3e319]:
+              - generic [ref=f3e320]: Compras
+              - checkbox "Crear" [ref=f3e321] [cursor=pointer]
+              - checkbox "Ver" [ref=f3e327] [cursor=pointer]
+            - generic [ref=f3e333]:
+              - generic [ref=f3e334]: Configuración
+              - checkbox "Gestionar" [ref=f3e335] [cursor=pointer]
+            - generic [ref=f3e341]:
+              - generic [ref=f3e342]: Estadísticas
+              - checkbox "Ver" [ref=f3e343] [cursor=pointer]
+        - separator [ref=f3e349]
+        - generic [ref=f3e350]:
+          - button "Cancelar" [ref=f3e351] [cursor=pointer]
+          - button "Guardar" [ref=f3e354] [cursor=pointer]:
+            - generic [ref=f3e355]:
+              - img [ref=f3e356]: save
+              - generic [ref=f3e357]: Guardar

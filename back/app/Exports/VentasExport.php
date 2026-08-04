@@ -14,7 +14,7 @@ class VentasExport implements FromCollection, ShouldAutoSize, WithHeadings
     public function collection(): Collection
     {
         return $this->ventas->map(fn ($v) => [
-            $v->numero, $v->fecha->format('d/m/Y H:i'), $v->usuario_nombre,
+            $v->numero, $v->fecha->format('d/m/Y H:i'), $v->usuario_nombre, 'CAJA '.$v->caja,
             $v->tipo_pago, $v->monto_efectivo, $v->monto_qr,
             $v->subtotal, $v->descuento, $v->total, $v->estado,
         ]);
@@ -22,6 +22,6 @@ class VentasExport implements FromCollection, ShouldAutoSize, WithHeadings
 
     public function headings(): array
     {
-        return ['Nº Venta', 'Fecha', 'Usuario', 'Tipo pago', 'Efectivo', 'QR', 'Subtotal', 'Descuento', 'Total', 'Estado'];
+        return ['Nº Venta', 'Fecha', 'Usuario', 'Caja', 'Tipo pago', 'Efectivo', 'QR', 'Subtotal', 'Descuento', 'Total', 'Estado'];
     }
 }

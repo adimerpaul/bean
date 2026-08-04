@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BajaController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\ProductoController;
@@ -58,6 +59,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/proveedores/{proveedor}', [CompraController::class, 'updateProveedor']);
     Route::delete('/proveedores/{proveedor}', [CompraController::class, 'destroyProveedor']);
     Route::get('/vencimientos', [CompraController::class, 'vencimientos']);
+
+    Route::get('/bajas', [BajaController::class, 'index']);
+    Route::get('/bajas-resumen', [BajaController::class, 'summary']);
+    Route::get('/bajas-catalogos', [BajaController::class, 'catalogos']);
+    Route::get('/bajas-lotes', [BajaController::class, 'lotes']);
+    Route::post('/bajas', [BajaController::class, 'store']);
+    Route::get('/bajas/{baja}', [BajaController::class, 'show']);
+    Route::put('/bajas/{baja}/anular', [BajaController::class, 'cancel']);
+
     Route::put('/configuracion', [ConfiguracionController::class, 'update']);
     Route::post('/configuracion/logo', [ConfiguracionController::class, 'uploadLogo']);
 });

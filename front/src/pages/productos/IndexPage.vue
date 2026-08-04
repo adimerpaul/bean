@@ -69,8 +69,10 @@
                      outlined dense label="Precio compra *" prefix="Bs" class="col-12 col-sm-4" :rules="[nonNegative]" />
             <q-input v-model.number="form.precio_venta" type="number" step="0.01" min="0"
                      outlined dense label="Precio venta *" prefix="Bs" class="col-12 col-sm-4" :rules="[nonNegative]" />
-            <q-input v-model.number="form.stock_inicial" type="number" min="0" :step="form.unidad==='KG'?0.001:1"
-                     outlined dense :label="form.unidad==='KG'?'Stock inicial (kg) *':'Stock inicial *'" class="col-12 col-sm-4" :rules="[nonNegative]" />
+            <q-input v-model.number="form.stock_inicial" type="number" min="0" :step="form.unidad==='KG'?0.001:1" :disable="!canStock"
+                     outlined dense :label="form.unidad==='KG'?'Stock inicial (kg) *':'Stock inicial *'" class="col-12 col-sm-4" :rules="[nonNegative]" hide-bottom-space>
+              <template v-if="!canStock" #append><q-icon name="lock" size="18px" color="grey-6"><q-tooltip>Requiere el permiso «Editar Stock Inicial»</q-tooltip></q-icon></template>
+            </q-input>
             </div>
           </q-card-section>
           <q-card-actions align="right">
@@ -106,7 +108,7 @@
 </template>
 
 <script setup>
-import { getCurrentInstance, onMounted, reactive, ref } from 'vue'
+import { computed, getCurrentInstance, onMounted, reactive, ref } from 'vue'
 const { proxy } = getCurrentInstance()
 const rows = ref([]), loading = ref(false), saving = ref(false), dialog = ref(false)
 const categoriesDialog = ref(false)
@@ -133,6 +135,7 @@ const columns = [
   { name:'stock_inicial', label:'Stock inicial', field:'stock_inicial', align:'center' }
 ]
 const can = p => proxy.$store.hasPermission(p)
+const canStock = computed(() => can('Editar Stock Inicial'))
 const required = v => (v !== null && v !== '') || 'Campo requerido'
 const nonNegative = v => Number(v) >= 0 || 'Debe ser mayor o igual a cero'
 const money = v => Number(v || 0).toFixed(2)

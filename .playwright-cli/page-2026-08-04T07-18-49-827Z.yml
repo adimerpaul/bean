@@ -1,0 +1,50 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e43]:
+    - banner [ref=e44]:
+      - toolbar [ref=e45]:
+        - button "Menu" [ref=e46] [cursor=pointer]:
+          - img [ref=e48]: keyboard_double_arrow_left
+        - generic [ref=e49]: Bean
+        - button "Expandir" [ref=e51] [cursor=pointer]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: cajero_test
+            - generic [ref=e59]: expand_more
+    - complementary [ref=e60]:
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - img "Bean" [ref=e68]
+          - generic [ref=e69]:
+            - generic [ref=e70]: Bean
+            - generic [ref=e71]: Ventas de pollo y alimentos
+        - generic [ref=e72]: Módulos
+        - list [ref=e73]:
+          - link "Inicio" [ref=e74] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e75]: dashboard
+          - link "Productos" [ref=e79] [cursor=pointer]:
+            - /url: /productos
+            - generic [ref=e80]: inventory_2
+          - link "Nueva venta" [ref=e84] [cursor=pointer]:
+            - /url: /ventas/nueva
+            - generic [ref=e85]: point_of_sale
+          - link "Ventas" [ref=e89] [cursor=pointer]:
+            - /url: /ventas
+            - generic [ref=e90]: receipt_long
+        - generic [ref=e94]:
+          - generic [ref=e95]: Bean v1.0.0
+          - generic [ref=e96]: © 2026 Bean
+        - button "Salir" [ref=e97] [cursor=pointer]:
+          - generic [ref=e98]: logout
+    - main [ref=e103]:
+      - generic [ref=e105]:
+        - generic [ref=e106]: storefront
+        - generic [ref=e107]: Bean
+        - generic [ref=e108]: Dirección no registrada
+        - generic [ref=e109]: Tel. —
+  - alert [ref=e110]:
+    - generic [ref=e111]:
+      - generic [ref=e112]:
+        - img [ref=e113]: check_circle
+        - generic [ref=e114]: Bienvenido CAJERO PRUEBA
+      - button [ref=e117] [cursor=pointer]:
+        - img [ref=e119]: close
