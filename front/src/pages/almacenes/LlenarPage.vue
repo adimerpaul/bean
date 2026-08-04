@@ -110,7 +110,7 @@
               <div v-for="(lot,index) in form.conteos" :key="index" class="lot-row">
                 <input v-model.trim="lot.lote" class="lot-input" placeholder="Lote">
                 <input v-model="lot.fecha_vencimiento" class="lot-input date" type="date">
-                <input v-model.number="lot.cantidad" class="lot-input qty" type="number" min="0.001" :step="form.unidad==='KG'?0.001:1" placeholder="Cant." @input="syncFormQuantity">
+                <input v-model.number="lot.cantidad" class="lot-input qty" type="number" min="0" step="any" placeholder="Cant." @input="syncFormQuantity">
                 <q-btn dense flat round size="xs" icon="delete" color="negative" @click="removeLot(index)"/>
               </div>
             </div>
