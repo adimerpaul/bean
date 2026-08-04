@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-sm">
-    <CompanyBanner class="q-mb-sm"/>
+<!--    <CompanyBanner class="q-mb-sm"/>-->
     <div class="row items-center q-mb-sm"><div><div class="text-subtitle1 text-weight-bold">Nueva compra</div><div class="text-caption text-grey-7">Agrega mercadería al inventario</div></div><q-space/><q-btn flat dense icon="groups" label="Proveedores" no-caps to="/proveedores"/><q-btn flat dense icon="shopping_bag" label="Ver compras" no-caps to="/compras"/></div>
     <div class="row q-col-gutter-sm">
       <div class="col-12 col-lg-7">
