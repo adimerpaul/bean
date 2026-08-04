@@ -34,8 +34,12 @@ class CompraController extends Controller
     {
         $this->authorizeAction($request, 'Ver Compras');
         $query = Compra::where('estado', 'COMPLETADA');
-        if ($from = $request->date('desde')) $query->whereDate('fecha', '>=', $from);
-        if ($to = $request->date('hasta')) $query->whereDate('fecha', '<=', $to);
+        if ($from = $request->date('desde')) {
+            $query->whereDate('fecha', '>=', $from);
+        }
+        if ($to = $request->date('hasta')) {
+            $query->whereDate('fecha', '<=', $to);
+        }
 
         return response()->json([
             'efectivo' => (clone $query)->sum('monto_efectivo'),
@@ -62,6 +66,7 @@ class CompraController extends Controller
     public function storeProveedor(Request $request)
     {
         $this->authorizeAction($request, 'Crear Compras');
+
         return response()->json(Proveedor::create($this->validatedProvider($request)), 201);
     }
 
@@ -166,7 +171,9 @@ class CompraController extends Controller
             foreach ($compra->detalles as $detail) {
                 $product = Producto::lockForUpdate()->find($detail->producto_id);
                 abort_if($product && (float) $product->stock_inicial + 0.0001 < (float) $detail->cantidad, 422, "No se puede anular: el stock de {$detail->nombre} ya fue utilizado");
-                if ($product) $product->decrement('stock_inicial', $detail->cantidad);
+                if ($product) {
+                    $product->decrement('stock_inicial', $detail->cantidad);
+                }
                 Lote::where('compra_detalle_id', $detail->id)->delete();
             }
             $compra->update(['estado' => 'ANULADA']);
@@ -175,13 +182,20 @@ class CompraController extends Controller
         return response()->json($compra->fresh());
     }
 
+    /** Los lotes vienen de compras o de revisiones de almacén; cada uno viaja con su origen. */
     public function vencimientos(Request $request)
     {
-        $this->authorizeAction($request, 'Ver Compras');
+        abort_unless($request->user()?->hasPermissionTo('Ver Compras') || $request->user()?->hasPermissionTo('Ver Almacenes'),
+            403, 'No tiene permiso para realizar esta acción');
         $status = $request->input('estado', 'por_vencer');
         $days = min(max((int) $request->input('dias', 30), 1), 365);
-        $query = Lote::with('producto:id,codigo,nombre,unidad')
-            ->where('cantidad_disponible', '>', 0)->whereNotNull('fecha_vencimiento');
+        $query = Lote::with([
+            'producto:id,codigo,nombre,unidad',
+            'compraDetalle:id,compra_id',
+            'compraDetalle.compra:id,numero,proveedor_nombre,fecha',
+            'almacenDetalle:id,almacen_id,usuario_nombre',
+            'almacenDetalle.almacen:id,numero,descripcion,fecha',
+        ])->where('cantidad_disponible', '>', 0)->whereNotNull('fecha_vencimiento');
         if ($status === 'vencido') {
             $query->whereDate('fecha_vencimiento', '<', today());
         } else {
@@ -191,9 +205,17 @@ class CompraController extends Controller
 
         return response()->json($query->orderBy('fecha_vencimiento')->get()->map(function ($lot) {
             $lot->dias_vencimiento = today()->diffInDays($lot->fecha_vencimiento, false);
+            $purchase = $lot->compraDetalle?->compra;
+            $review = $lot->almacenDetalle?->almacen;
+            $lot->origen = $review ? 'ALMACEN' : ($purchase ? 'COMPRA' : 'OTRO');
+            $lot->documento = $review?->numero ?? $purchase?->numero;
+            $lot->documento_detalle = $review
+                ? trim(($review->descripcion ?: 'Revisión').' · contó '.($lot->almacenDetalle->usuario_nombre ?: '—'))
+                : $purchase?->proveedor_nombre;
+            $lot->documento_fecha = $review?->fecha ?? $purchase?->fecha;
 
             return $lot;
-        }));
+        })->values());
     }
 
     private function authorizeAction(Request $request, string $permission): void

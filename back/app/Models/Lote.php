@@ -20,4 +20,14 @@ class Lote extends Model
     {
         return $this->belongsTo(Producto::class);
     }
+
+    public function compraDetalle()
+    {
+        return $this->belongsTo(CompraDetalle::class, 'compra_detalle_id');
+    }
+
+    public function almacenDetalle()
+    {
+        return $this->belongsTo(AlmacenDetalle::class, 'almacen_detalle_id');
+    }
 }

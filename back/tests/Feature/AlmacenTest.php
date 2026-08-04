@@ -177,6 +177,27 @@ class AlmacenTest extends TestCase
         $this->assertSame('BORRADOR', Almacen::find($nuevo['id'])->estado);
     }
 
+    public function test_lots_from_a_review_show_up_in_expirations_with_their_origin(): void
+    {
+        $this->admin();
+        $product = Producto::first();
+        $product->update(['stock_inicial' => 0]);
+
+        $almacen = $this->draft();
+        $this->postJson("/api/almacenes/{$almacen['id']}/detalles", [
+            'producto_id' => $product->id,
+            'conteos' => [['lote' => 'REV-1', 'fecha_vencimiento' => now()->addDays(5)->toDateString(), 'cantidad' => 7]],
+        ])->assertCreated();
+        $this->postJson("/api/almacenes/{$almacen['id']}/aplicar")->assertOk();
+
+        $row = collect($this->getJson('/api/vencimientos?estado=por_vencer&dias=30')->assertOk()->json())
+            ->firstWhere('lote', 'REV-1');
+
+        $this->assertNotNull($row, 'El lote de la revisión debe aparecer en Por vencer');
+        $this->assertSame('ALMACEN', $row['origen']);
+        $this->assertSame($almacen['numero'], $row['documento']);
+    }
+
     public function test_progress_endpoint_reports_review_status(): void
     {
         $this->admin();
