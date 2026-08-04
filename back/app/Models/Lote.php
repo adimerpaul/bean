@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Lote extends Model
 {
     protected $fillable = [
-        'producto_id', 'compra_detalle_id', 'lote', 'fecha_vencimiento',
+        'producto_id', 'compra_detalle_id', 'almacen_detalle_id', 'lote', 'fecha_vencimiento',
         'cantidad_inicial', 'cantidad_disponible',
     ];
 

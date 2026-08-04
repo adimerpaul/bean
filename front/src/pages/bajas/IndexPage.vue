@@ -27,6 +27,7 @@
         <template #body-cell-estado="p"><q-td :props="p"><q-badge :color="p.row.estado==='ANULADA'?'grey-6':'positive'" :label="p.row.estado"/></q-td></template>
         <template #body-cell-actions="p"><q-td :props="p">
           <q-btn dense flat round color="primary" icon="visibility" @click="openDetail(p.row)"><q-tooltip>Ver detalle</q-tooltip></q-btn>
+          <q-btn dense flat round color="grey-8" icon="print" :loading="printing===p.row.id" @click="print(p.row)"><q-tooltip>Imprimir comprobante</q-tooltip></q-btn>
           <q-btn v-if="can('Anular Bajas')&&p.row.estado!=='ANULADA'" dense flat round color="negative" icon="undo" @click="cancel(p.row)"><q-tooltip>Anular y devolver stock</q-tooltip></q-btn>
         </q-td></template>
         <template #no-data><div class="full-width text-center text-grey-6 q-py-xl"><q-icon name="inbox" size="42px"/><div>No hay bajas registradas</div></div></template>
@@ -35,7 +36,7 @@
 
     <q-dialog v-model="detailDialog">
       <q-card style="width:680px;max-width:94vw">
-        <q-card-section class="row items-center q-py-sm bg-negative text-white"><q-avatar color="white" text-color="negative" icon="delete_forever" size="32px"/><div class="q-ml-sm"><div class="text-subtitle1 text-weight-bold">{{detail.numero}}</div><div class="text-caption">{{detail.motivo}} · {{formatDate(detail.fecha)}}</div></div><q-space/><q-btn flat round dense icon="close" color="white" v-close-popup/></q-card-section>
+        <q-card-section class="row items-center q-py-sm bg-negative text-white"><q-avatar color="white" text-color="negative" icon="delete_forever" size="32px"/><div class="q-ml-sm"><div class="text-subtitle1 text-weight-bold">{{detail.numero}}</div><div class="text-caption">{{detail.motivo}} · {{formatDate(detail.fecha)}}</div></div><q-space/><q-btn flat dense icon="print" label="Imprimir" no-caps color="white" class="q-mr-xs" @click="printBaja(detail)"/><q-btn flat round dense icon="close" color="white" v-close-popup/></q-card-section>
         <q-card-section class="q-pa-sm">
           <div class="row text-caption text-grey-8 q-mb-xs"><span>Registró: <b>{{detail.usuario_nombre}}</b></span><q-space/><q-badge :color="detail.estado==='ANULADA'?'grey-6':'positive'" :label="detail.estado"/></div>
           <div v-if="detail.observacion" class="text-caption text-grey-7 q-mb-xs">Observación: {{detail.observacion}}</div>
@@ -57,8 +58,9 @@
 
 <script setup>
 import { getCurrentInstance, onMounted, reactive, ref } from 'vue'
+import { printBaja } from '../../addons/bajaPrint'
 const {proxy}=getCurrentInstance()
-const rows=ref([]),motives=ref([]),loading=ref(false),detailDialog=ref(false)
+const rows=ref([]),motives=ref([]),loading=ref(false),detailDialog=ref(false),printing=ref(null)
 const detail=reactive({numero:'',motivo:'',fecha:null,usuario_nombre:'',estado:'',observacion:'',total_costo:0,detalles:[]})
 const summary=reactive({costo:0,cantidad:0,por_motivo:[]})
 const filters=reactive({q:'',desde:'',hasta:'',motivo_id:null,estado:null})
@@ -95,6 +97,13 @@ function onRequest(request){pagination.value.page=request.pagination.page;pagina
 async function openDetail(row){
   try{Object.assign(detail,(await proxy.$axios.get(`/bajas/${row.id}`)).data);detailDialog.value=true}
   catch(e){proxy.$alert.error(e.response?.data?.message||'No se pudo cargar el detalle')}
+}
+// La fila del listado no trae los detalles: se piden antes de imprimir.
+async function print(row){
+  printing.value=row.id
+  try{printBaja((await proxy.$axios.get(`/bajas/${row.id}`)).data)}
+  catch(e){proxy.$alert.error(e.response?.data?.message||'No se pudo imprimir el comprobante')}
+  finally{printing.value=null}
 }
 function cancel(row){
   proxy.$alert.dialog(`¿Anular la baja ${row.numero}? El stock volverá al inventario.`).onOk(async()=>{

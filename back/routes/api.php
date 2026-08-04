@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\BajaController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ConfiguracionController;
@@ -67,6 +68,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/bajas', [BajaController::class, 'store']);
     Route::get('/bajas/{baja}', [BajaController::class, 'show']);
     Route::put('/bajas/{baja}/anular', [BajaController::class, 'cancel']);
+
+    Route::get('/almacenes', [AlmacenController::class, 'index']);
+    Route::get('/almacenes-resumen', [AlmacenController::class, 'summary']);
+    Route::post('/almacenes', [AlmacenController::class, 'store']);
+    Route::get('/almacenes/{almacen}', [AlmacenController::class, 'show']);
+    Route::put('/almacenes/{almacen}', [AlmacenController::class, 'update']);
+    Route::get('/almacenes/{almacen}/avance', [AlmacenController::class, 'progress']);
+    Route::post('/almacenes/{almacen}/detalles', [AlmacenController::class, 'storeDetalle']);
+    Route::put('/almacenes/{almacen}/detalles/{detalle}', [AlmacenController::class, 'updateDetalle']);
+    Route::delete('/almacenes/{almacen}/detalles/{detalle}', [AlmacenController::class, 'destroyDetalle']);
+    Route::post('/almacenes/{almacen}/aplicar', [AlmacenController::class, 'apply']);
+    Route::put('/almacenes/{almacen}/anular', [AlmacenController::class, 'cancel']);
+    Route::delete('/almacenes/{almacen}', [AlmacenController::class, 'destroy']);
 
     Route::put('/configuracion', [ConfiguracionController::class, 'update']);
     Route::post('/configuracion/logo', [ConfiguracionController::class, 'uploadLogo']);

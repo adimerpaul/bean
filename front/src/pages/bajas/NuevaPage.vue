@@ -88,6 +88,7 @@
 
 <script setup>
 import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref } from 'vue'
+import { printBaja } from '../../addons/bajaPrint'
 const {proxy}=getCurrentInstance()
 const products=ref([]),categories=ref([]),motives=ref([]),items=ref([]),search=ref(''),category=ref(null),motive=ref(null),observation=ref(''),saving=ref(false),searchInput=ref(null)
 const productDialog=ref(false),selectedProduct=ref(null),quickQuantity=ref(1),quickLot=ref(null),quickNote=ref(''),lots=ref([]),loadingLots=ref(false)
@@ -151,6 +152,7 @@ function confirmBaja(){
       const {data}=await proxy.$axios.post('/bajas',{motivo_id:motive.value,observacion:observation.value,
         detalles:items.value.map(i=>({producto_id:i.producto_id,cantidad:i.cantidad,lote_id:i.lote_id,observacion:i.observacion}))})
       proxy.$alert.success(`Baja ${data.numero} registrada`)
+      printBaja(data)
       items.value=[];observation.value='';loadProducts();searchInput.value?.focus()
     }catch(e){proxy.$alert.error(Object.values(e.response?.data?.errors||{})[0]?.[0]||e.response?.data?.message||'No se pudo registrar la baja')}
     finally{saving.value=false}

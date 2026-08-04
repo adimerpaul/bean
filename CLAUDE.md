@@ -66,11 +66,29 @@ La tabla `permissions` tiene dos columnas propias del proyecto: **`grupo`** (def
 - **Venta** (`VentaController@store`): valida stock con `lockForUpdate`, decrementa `stock_inicial` y consume lotes en orden **FIFO por `fecha_vencimiento`** (los `NULL` al final), registrando la asignación en la tabla pivote `venta_detalle_lotes`.
 - **Anulación de venta**: devuelve stock y repone exactamente los lotes registrados en `venta_detalle_lotes`.
 - **Anulación de compra**: falla con 422 si el stock ya se consumió; si no, descuenta y borra los lotes de esa compra.
+- **Almacén** (`AlmacenController@apply`): es un conteo físico — al aplicarlo el `stock_inicial` **pasa a ser** la cantidad contada (no se suma). Ver "Almacén" más abajo.
 - **Baja** (`BajaController@store`): igual que una venta pero sin cobro — descuenta `stock_inicial` y consume lotes (el lote elegido primero si se envía `lote_id`, si no FIFO), guardando la asignación en `baja_detalle_lotes`. Su anulación repone stock y lotes. El costo se valora con `precio_compra` del producto, no con precio de venta.
 
 Todo esto va dentro de `DB::transaction` con `Producto::lockForUpdate()`. Cualquier operación nueva que toque existencias debe hacer lo mismo.
 
 Los detalles de venta/compra son **snapshots**: copian `codigo`, `nombre`, `unidad`, `foto`, `precio_compra` del producto en el momento de la operación. Los reportes y la ganancia se calculan sobre esos snapshots, no sobre `productos`. No reemplazar por joins a `productos`.
+
+### Almacén: revisión física del stock (conteo)
+
+`almacenes` + `almacen_detalles` son el único documento **editable** del sistema y no representan un ingreso de mercadería sino una **revisión del stock real de la tienda**: lo contado se vuelve el stock oficial. Estados: `BORRADOR` (en revisión) `→ APLICADO | ANULADO`.
+
+- **Se llena entre varias personas a la vez**, cada una desde su celular. Por eso no hay un "guardar todo": cada producto se persiste solo con `POST/PUT/DELETE /almacenes/{id}/detalles[/{detalle}]`, y hay un **unique `(almacen_id, producto_id)`** — un producto se cuenta una sola vez. Si otro ya lo contó, `storeDetalle` responde **409** con quién y cuánto; el frontend ofrece reemplazar (`reemplazar: true`) y la línea pasa a nombre de quien corrige. Las páginas refrescan solas (10 s llenando, 15 s en avance).
+- `POST /almacenes/{id}/aplicar` es el botón **"Actualizar productos"**: por cada línea `stock_inicial` pasa a ser la cantidad contada, y se guardan `stock_anterior`, `stock_nuevo` y `diferencia` en el detalle. **Los productos que nadie contó no se tocan.**
+- **Un producto puede contarse en varios lotes**: `almacen_detalle_conteos` guarda una fila por lote (lote + `fecha_vencimiento` + cantidad) y `almacen_detalles.cantidad` pasa a ser su suma. Al reabrir un producto ya contado se recupera tal cual (cantidad, lotes y vencimientos). Guardar una línea **reemplaza** sus conteos (`syncConteos`).
+- Los lotes se ajustan según cómo se contó:
+  - **Con lotes cargados** (`replaceLots`): lo contado es la verdad — se guarda el saldo de los lotes vigentes en `almacen_detalle_lotes`, se ponen en cero (no se borran, hay `venta_detalle_lotes` apuntando) y se crea un `Lote` por cada lote contado.
+  - **Sólo cantidad total**: se ajusta por la **diferencia** — sobrante → `Lote` nuevo por esa diferencia; faltante → consume lotes FIFO, registrando también en `almacen_detalle_lotes`.
+- `PUT /almacenes/{id}/anular` deshace el ajuste (aplica `-diferencia`), borra el lote creado o repone los consumidos; falla con 422 si ese stock ya se vendió o se dio de baja.
+- No se pide costo al contar: `precio_compra` es snapshot del producto y sólo sirve para valorizar la diferencia en los resúmenes.
+- Por esto `lotes.compra_detalle_id` es **nullable** y existe `lotes.almacen_detalle_id`: un lote puede nacer de una compra o de un almacén. Ambos aparecen igual en `/vencimientos` (páginas "Por vencer" y "Vencidos").
+- Permisos (grupo `Almacén`): `Ver/Crear/Editar/Aplicar/Anular Almacenes`. `Aplicar` está separado a propósito: quien cuenta no es necesariamente quien autoriza el ajuste.
+- Frontend, tres páginas: `almacenes/IndexPage.vue` (listado + diálogo de creación), `almacenes/LlenarPage.vue` (`/almacenes/:id`, contar) y `almacenes/AvancePage.vue` (`/almacenes/:id/avance`, control y botón de aplicar).
+- `tests/Feature/AlmacenTest.php` cubre conteo → aplicación (sobrante y faltante) → anulación, el 409 por producto duplicado, el bloqueo al aplicar y los permisos.
 
 ### Productos por peso
 
