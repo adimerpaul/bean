@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\ProductosExport;
+use App\Exports\Productos\ContextoReporte;
+use App\Exports\ProductosReporteExport;
 use App\Models\Categoria;
+use App\Models\Configuracion;
 use App\Models\Producto;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
@@ -27,7 +31,97 @@ class ProductoController extends Controller
     {
         $this->authorizeAction($request, 'Ver Productos');
 
-        return Excel::download(new ProductosExport($this->filteredSortedQuery($request)->get()), 'productos_'.now()->format('Ymd_His').'.xlsx');
+        $productos = $this->filteredSortedQuery($request)->get()->keyBy('id');
+        [$desde, $hasta] = $this->rangoFechas($request);
+        // Con filtros de catálogo activos, los movimientos se limitan a esos productos.
+        $ids = ($request->filled('q') || $request->integer('categoria_id')) ? $productos->keys()->all() : null;
+
+        $export = new ProductosReporteExport(
+            $this->contextoReporte($request, $desde, $hasta),
+            $productos,
+            $this->comprasPorProducto($desde, $hasta, $ids),
+            $this->ventasPorProducto($desde, $hasta, $ids),
+        );
+
+        return Excel::download($export, 'reporte_productos_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    /** @return array{0: ?Carbon, 1: ?Carbon} */
+    private function rangoFechas(Request $request): array
+    {
+        $request->validate([
+            'desde' => ['nullable', 'date'],
+            'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
+        ]);
+
+        return [
+            $request->filled('desde') ? Carbon::parse($request->input('desde'))->startOfDay() : null,
+            $request->filled('hasta') ? Carbon::parse($request->input('hasta'))->endOfDay() : null,
+        ];
+    }
+
+    private function contextoReporte(Request $request, ?Carbon $desde, ?Carbon $hasta): ContextoReporte
+    {
+        $empresa = Configuracion::first();
+        $filtros = [];
+        if ($busqueda = trim((string) $request->input('q'))) {
+            $filtros['Búsqueda'] = $busqueda;
+        }
+        if ($categoriaId = $request->integer('categoria_id')) {
+            $filtros['Categoría'] = Categoria::find($categoriaId)?->nombre ?? 'ID '.$categoriaId;
+        }
+
+        return new ContextoReporte(
+            empresa: $empresa?->nombre_empresa ?: 'Bean',
+            nit: $empresa?->nit,
+            usuario: $request->user()?->name ?? $request->user()?->username ?? '-',
+            generado: now(),
+            desde: $desde,
+            hasta: $hasta,
+            filtros: $filtros,
+        );
+    }
+
+    private function comprasPorProducto(?Carbon $desde, ?Carbon $hasta, ?array $ids)
+    {
+        return DB::table('compra_detalles as d')
+            ->join('compras as c', 'c.id', '=', 'd.compra_id')
+            ->whereNull('c.deleted_at')
+            ->where('c.estado', 'COMPLETADA')
+            ->when($desde, fn ($q) => $q->where('c.fecha', '>=', $desde))
+            ->when($hasta, fn ($q) => $q->where('c.fecha', '<=', $hasta))
+            ->when($ids !== null, fn ($q) => $q->whereIn('d.producto_id', $ids))
+            ->groupBy('d.producto_id', 'd.codigo', 'd.nombre', 'd.unidad')
+            ->selectRaw('d.producto_id, d.codigo, d.nombre, d.unidad,
+                COUNT(DISTINCT d.compra_id) as documentos,
+                SUM(d.cantidad) as cantidad,
+                SUM(d.total) as total,
+                MAX(c.fecha) as ultima')
+            ->orderByRaw('SUM(d.total) desc')
+            ->get();
+    }
+
+    private function ventasPorProducto(?Carbon $desde, ?Carbon $hasta, ?array $ids)
+    {
+        return DB::table('venta_detalles as d')
+            ->join('ventas as v', 'v.id', '=', 'd.venta_id')
+            ->whereNull('v.deleted_at')
+            ->whereNull('d.deleted_at')
+            ->where('v.estado', 'COMPLETADA')
+            ->when($desde, fn ($q) => $q->where('v.fecha', '>=', $desde))
+            ->when($hasta, fn ($q) => $q->where('v.fecha', '<=', $hasta))
+            ->when($ids !== null, fn ($q) => $q->whereIn('d.producto_id', $ids))
+            ->groupBy('d.producto_id', 'd.codigo', 'd.nombre', 'd.unidad', 'd.categoria')
+            ->selectRaw('d.producto_id, d.codigo, d.nombre, d.unidad, d.categoria,
+                COUNT(DISTINCT d.venta_id) as documentos,
+                SUM(d.cantidad) as cantidad,
+                SUM(d.subtotal) as subtotal,
+                SUM(d.descuento) as descuento,
+                SUM(d.total) as total,
+                SUM(d.cantidad * d.precio_compra) as costo,
+                MAX(v.fecha) as ultima')
+            ->orderByRaw('SUM(d.total) desc')
+            ->get();
     }
 
     public function exportPdf(Request $request)

@@ -6,7 +6,7 @@
         <div class="text-caption text-grey-7">Inventario inicial, precios e imágenes</div>
       </div>
       <q-space />
-      <q-btn-dropdown dense flat color="primary" icon="download" label="Exportar" no-caps class="q-mr-xs"><q-list dense><q-item clickable v-close-popup @click="download('excel')"><q-item-section avatar><q-icon name="table_view" color="positive"/></q-item-section><q-item-section>Excel</q-item-section></q-item><q-item clickable v-close-popup @click="download('pdf')"><q-item-section avatar><q-icon name="picture_as_pdf" color="negative"/></q-item-section><q-item-section>PDF</q-item-section></q-item></q-list></q-btn-dropdown>
+      <q-btn-dropdown dense flat color="primary" icon="download" label="Exportar" no-caps class="q-mr-xs"><q-list dense><q-item clickable v-close-popup @click="openExport"><q-item-section avatar><q-icon name="table_view" color="positive"/></q-item-section><q-item-section>Excel</q-item-section></q-item><q-item clickable v-close-popup @click="download('pdf')"><q-item-section avatar><q-icon name="picture_as_pdf" color="negative"/></q-item-section><q-item-section>PDF</q-item-section></q-item></q-list></q-btn-dropdown>
       <q-btn v-if="can('Editar Productos')" dense flat color="primary" icon="category" label="Categorías" no-caps class="q-mr-xs" @click="openCategories" />
       <q-btn v-if="can('Crear Productos')" dense color="primary" icon="add" label="Nuevo" no-caps @click="openForm()" />
     </div>
@@ -104,6 +104,34 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="exportDialog">
+      <q-card style="width:560px;max-width:96vw">
+        <q-card-section class="row items-center q-pa-sm bg-grey-2">
+          <q-icon name="table_view" color="positive" size="26px" class="q-mr-sm"/>
+          <div><div class="text-subtitle2 text-weight-bold">Exportar reporte a Excel</div><div class="text-caption text-grey-7">Hojas: Resumen · Inventario · Compras por producto · Ventas por producto</div></div>
+        </q-card-section>
+        <q-separator/>
+        <q-card-section class="q-pa-sm">
+          <div class="text-caption text-weight-medium q-mb-xs">Periodo de compras y ventas</div>
+          <div class="row q-col-gutter-sm">
+            <q-input v-model="range.desde" dense outlined clearable type="date" label="Desde" stack-label class="col-6"/>
+            <q-input v-model="range.hasta" dense outlined clearable type="date" label="Hasta" stack-label class="col-6"/>
+          </div>
+          <div class="row q-gutter-xs q-mt-sm">
+            <q-chip v-for="preset in rangePresets" :key="preset.label" clickable dense color="grey-3" text-color="primary" @click="applyPreset(preset)">{{preset.label}}</q-chip>
+          </div>
+          <q-list dense bordered class="rounded-borders q-mt-sm">
+            <q-item dense><q-item-section avatar><q-icon name="filter_alt" color="primary" size="18px"/></q-item-section><q-item-section><q-item-label class="text-caption">Filtros de pantalla aplicados</q-item-label><q-item-label caption>{{filterSummary}}</q-item-label></q-item-section></q-item>
+            <q-item dense><q-item-section avatar><q-icon name="inventory_2" color="primary" size="18px"/></q-item-section><q-item-section><q-item-label class="text-caption">Inventario</q-item-label><q-item-label caption>Stock y valorización al momento de la descarga</q-item-label></q-item-section></q-item>
+          </q-list>
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-sm">
+          <q-btn flat dense no-caps label="Cancelar" v-close-popup/>
+          <q-btn dense no-caps unelevated color="positive" icon="download" label="Descargar Excel" :loading="exporting" @click="download('excel')"/>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -134,6 +162,24 @@ const columns = [
   { name:'precio_venta', label:'P. venta', field:'precio_venta', align:'right' },
   { name:'stock_inicial', label:'Stock inicial', field:'stock_inicial', align:'center' }
 ]
+const exportDialog = ref(false), exporting = ref(false)
+const range = reactive({ desde:'', hasta:'' })
+const isoDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+const rangePresets = [
+  { label:'Hoy', rango:()=>{const h=new Date();return [isoDate(h),isoDate(h)]} },
+  { label:'Últimos 7 días', rango:()=>{const h=new Date(),d=new Date();d.setDate(d.getDate()-6);return [isoDate(d),isoDate(h)]} },
+  { label:'Este mes', rango:()=>{const h=new Date();return [isoDate(new Date(h.getFullYear(),h.getMonth(),1)),isoDate(h)]} },
+  { label:'Mes anterior', rango:()=>{const h=new Date();return [isoDate(new Date(h.getFullYear(),h.getMonth()-1,1)),isoDate(new Date(h.getFullYear(),h.getMonth(),0))]} },
+  { label:'Este año', rango:()=>{const h=new Date();return [isoDate(new Date(h.getFullYear(),0,1)),isoDate(h)]} },
+  { label:'Todo el histórico', rango:()=>['',''] }
+]
+const filterSummary = computed(() => {
+  const partes=[]
+  if (search.value) partes.push(`Búsqueda: ${search.value}`)
+  if (category.value) partes.push(`Categoría: ${category.value.nombre}`)
+  partes.push(orderOptions.find(o=>o.value===order.value)?.label||'Nombre A–Z')
+  return partes.join(' · ')
+})
 const can = p => proxy.$store.hasPermission(p)
 const canStock = computed(() => can('Editar Stock Inicial'))
 const required = v => (v !== null && v !== '') || 'Campo requerido'
@@ -149,11 +195,19 @@ function onRequest ({ pagination: p }) {
     .catch(e => proxy.$alert.error(e.response?.data?.message || 'No se pudieron cargar los productos'))
     .finally(() => { loading.value=false })
 }
+function openExport () { if (!range.desde && !range.hasta) applyPreset(rangePresets[2]); exportDialog.value=true }
+function applyPreset (preset) { const [desde,hasta]=preset.rango(); range.desde=desde; range.hasta=hasta }
 async function download (type) {
+  const excel=type==='excel'
+  if (excel) exporting.value=true
   try {
-    const response=await proxy.$axios.get(`/productos-exportar/${type}`,{params:filterParams(),responseType:'blob'})
-    const url=URL.createObjectURL(response.data),a=document.createElement('a');a.href=url;a.download=`productos.${type==='excel'?'xlsx':'pdf'}`;a.click();URL.revokeObjectURL(url)
+    const params={ ...filterParams(), ...(excel?{ desde:range.desde||undefined, hasta:range.hasta||undefined }:{}) }
+    const response=await proxy.$axios.get(`/productos-exportar/${type}`,{params,responseType:'blob'})
+    const nombre=excel?`reporte_productos_${isoDate(new Date()).replace(/-/g,'')}.xlsx`:'productos.pdf'
+    const url=URL.createObjectURL(response.data),a=document.createElement('a');a.href=url;a.download=nombre;a.click();URL.revokeObjectURL(url)
+    if (excel) exportDialog.value=false
   } catch { proxy.$alert.error('No se pudo exportar el inventario') }
+  finally { exporting.value=false }
 }
 function loadCatalogs () {
   return proxy.$axios.get('/productos-catalogos').then(({data}) => {
