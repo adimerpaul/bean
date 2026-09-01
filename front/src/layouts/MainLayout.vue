@@ -55,7 +55,7 @@
       v-model="leftDrawerOpen"
       bordered
       show-if-above
-      :width="236"
+      :width="150"
       :breakpoint="700"
       class="app-drawer text-white"
     >
@@ -67,7 +67,6 @@
             </div>
             <div class="drawer-brand__text">
               <div class="drawer-brand__title">{{ companyName }}</div>
-              <div class="drawer-brand__caption">Ventas de pollo y alimentos</div>
             </div>
           </div>
 
@@ -85,7 +84,7 @@
               active-class="drawer-menu-link--active"
             >
               <q-item-section avatar class="drawer-menu-link__avatar">
-                <q-icon :name="link.icon" size="15px" />
+                <q-icon :name="link.icon" size="13px" />
               </q-item-section>
               <q-item-section>
                 <q-item-label class="drawer-menu-link__label" lines="1">{{ link.title }}</q-item-label>
@@ -193,17 +192,17 @@ function logout () {
 
 .drawer-shell {
   min-height: 100%;
-  padding: 6px 6px 8px;
+  padding: 3px 3px 5px;
 }
 
 .drawer-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 6px;
-  margin-bottom: 4px;
+  gap: 5px;
+  padding: 3px 4px;
+  margin-bottom: 2px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -211,10 +210,10 @@ function logout () {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 7px;
   background: linear-gradient(135deg, #ffb300, #f57c00);
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
@@ -222,8 +221,8 @@ function logout () {
 }
 
 .drawer-brand__logo img {
-  width: 76px;
-  height: 32px;
+  width: 52px;
+  height: 22px;
   max-width: none;
   object-fit: cover;
   object-position: left;
@@ -231,10 +230,13 @@ function logout () {
 
 .drawer-brand__title {
   color: #ffffff;
-  font-size: 12.5px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .drawer-brand__text {
@@ -242,17 +244,10 @@ function logout () {
   line-height: 1.05;
 }
 
-.drawer-brand__caption {
-  margin-top: 2px;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 10px;
-  line-height: 1.15;
-}
-
 .drawer-eyebrow {
-  padding: 2px 8px 3px;
+  padding: 1px 5px 1px;
   color: rgba(255, 255, 255, 0.66);
-  font-size: 10px;
+  font-size: 8.5px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -261,25 +256,30 @@ function logout () {
 .drawer-menu {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
 }
 
 .drawer-menu-link {
-  min-height: 26px;
-  margin: 0 4px;
-  padding: 0 6px;
-  border-radius: 7px;
+  min-height: 17px;
+  margin: 0 1px;
+  padding: 0 3px;
+  border-radius: 4px;
   color: rgba(255, 255, 255, 0.86);
 }
 
+.drawer-menu-link .q-item__section {
+  padding: 0;
+}
+
 .drawer-menu-link__avatar {
-  min-width: 22px;
+  min-width: 16px;
+  padding-right: 5px !important;
 }
 
 .drawer-menu-link__label {
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 650;
-  line-height: 1.1;
+  line-height: 1;
 }
 
 .drawer-menu-link--active {
@@ -289,17 +289,18 @@ function logout () {
 }
 
 .drawer-footer {
-  padding: 6px 8px 4px;
-  margin-top: 6px;
+  padding: 3px 5px 2px;
+  margin-top: 3px;
   color: rgba(255, 255, 255, 0.58);
-  font-size: 10px;
+  font-size: 8.5px;
   line-height: 1.35;
 }
 
 .drawer-logout {
-  min-height: 24px;
-  margin: 2px 5px 0;
-  border-radius: 9px;
+  min-height: 18px;
+  margin: 2px 2px 0;
+  border-radius: 7px;
+  font-size: 9.5px;
   color: #ffebee;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);

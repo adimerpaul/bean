@@ -2,12 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AlmacenCapitalExport;
+use App\Exports\AlmacenesExport;
+use App\Exports\AlmacenRevisionExport;
+use App\Exports\Comun\ContextoReporte;
 use App\Models\Almacen;
 use App\Models\AlmacenDetalle;
+use App\Models\Configuracion;
 use App\Models\Lote;
 use App\Models\Producto;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Revisión física del stock de la tienda. El documento se llena entre varias
@@ -50,23 +59,33 @@ class AlmacenController extends Controller
     public function progress(Request $request, Almacen $almacen)
     {
         $this->authorizeAction($request, 'Ver Almacenes');
-        $details = $almacen->detalles()->with(['producto:id,stock_inicial', 'conteos'])->orderBy('nombre')->get();
+
+        return response()->json($this->progressData($almacen));
+    }
+
+    /** Líneas de la revisión con el stock del sistema y la diferencia contra lo contado. */
+    private function progressRows(Almacen $almacen): Collection
+    {
         $applied = $almacen->estado === 'APLICADO';
 
-        $rows = $details->map(function ($detail) use ($applied) {
-            $system = $applied ? (float) $detail->stock_anterior : (float) ($detail->producto?->stock_inicial ?? $detail->stock_sistema);
-            $counted = (float) $detail->cantidad;
-            $detail->stock_actual = $system;
-            $detail->diferencia_actual = round($counted - $system, 3);
+        return $almacen->detalles()->with(['producto:id,stock_inicial,precio_venta', 'conteos'])->orderBy('nombre')->get()
+            ->map(function ($detail) use ($applied) {
+                $system = $applied ? (float) $detail->stock_anterior : (float) ($detail->producto?->stock_inicial ?? $detail->stock_sistema);
+                $detail->stock_actual = $system;
+                $detail->diferencia_actual = round((float) $detail->cantidad - $system, 3);
 
-            return $detail;
-        });
+                return $detail;
+            })->values();
+    }
 
+    private function progressData(Almacen $almacen): array
+    {
+        $rows = $this->progressRows($almacen);
         $withDifference = $rows->filter(fn ($d) => abs((float) $d->diferencia_actual) > 0.0001);
 
-        return response()->json([
+        return [
             'almacen' => $almacen,
-            'detalles' => $rows->values(),
+            'detalles' => $rows,
             'total_productos' => Producto::count(),
             'revisados' => $rows->count(),
             'con_diferencia' => $withDifference->count(),
@@ -75,7 +94,137 @@ class AlmacenController extends Controller
             'por_usuario' => $rows->groupBy('usuario_nombre')->map(fn ($group, $name) => [
                 'usuario' => $name ?: '—', 'productos' => $group->count(),
             ])->values(),
-        ]);
+        ];
+    }
+
+    /** Excel del listado de revisiones, con los mismos filtros de la pantalla. */
+    public function exportExcel(Request $request)
+    {
+        $this->authorizeAction($request, 'Ver Almacenes');
+        $almacenes = $this->filteredQuery($request)->withCount('detalles')->latest('fecha')->get();
+
+        return Excel::download(new AlmacenesExport($this->reportContext($request), $almacenes),
+            'almacenes_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    /** Excel de lo contado en una revisión (pantalla de llenado). */
+    public function exportDetalleExcel(Request $request, Almacen $almacen)
+    {
+        $this->authorizeAction($request, 'Ver Almacenes');
+        $data = $this->progressData($almacen);
+
+        return Excel::download(new AlmacenRevisionExport($this->reportContext($request), $almacen, $data['detalles'], $data),
+            'almacen_'.$almacen->numero.'_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    /** Excel del avance: comparación con el sistema y aporte de cada persona. */
+    public function exportAvanceExcel(Request $request, Almacen $almacen)
+    {
+        $this->authorizeAction($request, 'Ver Almacenes');
+        $data = $this->progressData($almacen);
+
+        return Excel::download(new AlmacenRevisionExport($this->reportContext($request), $almacen, $data['detalles'], $data, true),
+            'avance_almacen_'.$almacen->numero.'_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    /** Excel del capital: precios, stock antes y después, y valor a costo y a venta. */
+    public function exportCapitalExcel(Request $request, Almacen $almacen)
+    {
+        $this->authorizeAction($request, 'Ver Almacenes');
+        $data = $this->capitalData($almacen);
+
+        return Excel::download(new AlmacenCapitalExport($this->reportContext($request), $almacen, $data['detalles'], $data),
+            'capital_almacen_'.$almacen->numero.'_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    public function exportAvancePdf(Request $request, Almacen $almacen)
+    {
+        $this->authorizeAction($request, 'Ver Almacenes');
+
+        return Pdf::loadView('almacenes.avance', [
+            'empresa' => Configuracion::first(),
+            'almacen' => $almacen,
+            'usuario' => $request->user()?->name,
+            'data' => $this->progressData($almacen),
+        ])->setPaper('letter', 'landscape')->download('avance_almacen_'.$almacen->numero.'.pdf');
+    }
+
+    public function exportCapitalPdf(Request $request, Almacen $almacen)
+    {
+        $this->authorizeAction($request, 'Ver Almacenes');
+
+        return Pdf::loadView('almacenes.capital', [
+            'empresa' => Configuracion::first(),
+            'almacen' => $almacen,
+            'usuario' => $request->user()?->name,
+            'data' => $this->capitalData($almacen),
+        ])->setPaper('letter', 'landscape')->download('capital_almacen_'.$almacen->numero.'.pdf');
+    }
+
+    /**
+     * Cuánto vale el almacén hoy y cuánto valdrá con la revisión aplicada, a precio
+     * de compra y de venta. Los productos que nadie contó no cambian, pero se suman
+     * aparte para que el total sea el capital de toda la tienda.
+     */
+    private function capitalData(Almacen $almacen): array
+    {
+        $rows = $this->progressRows($almacen);
+        $sale = fn ($detail) => (float) ($detail->producto?->precio_venta ?? 0);
+
+        $rest = Producto::whereNotIn('id', $rows->pluck('producto_id')->filter()->all())
+            ->selectRaw('COUNT(*) AS productos, COALESCE(SUM(stock_inicial), 0) AS cantidad,'
+                .' COALESCE(SUM(stock_inicial * precio_compra), 0) AS costo,'
+                .' COALESCE(SUM(stock_inicial * precio_venta), 0) AS venta')
+            ->first();
+
+        $noRevisados = [
+            'productos' => (int) $rest->productos,
+            'cantidad' => round((float) $rest->cantidad, 3),
+            'costo' => round((float) $rest->costo, 2),
+            'venta' => round((float) $rest->venta, 2),
+        ];
+
+        $sum = fn (callable $value) => round($rows->sum($value), 2);
+        $costBefore = $sum(fn ($d) => (float) $d->stock_actual * (float) $d->precio_compra);
+        $saleBefore = $sum(fn ($d) => (float) $d->stock_actual * $sale($d));
+        $costAfter = $sum(fn ($d) => (float) $d->cantidad * (float) $d->precio_compra);
+        $saleAfter = $sum(fn ($d) => (float) $d->cantidad * $sale($d));
+
+        return [
+            'almacen' => $almacen,
+            'detalles' => $rows,
+            'revisados' => $rows->count(),
+            'total_productos' => Producto::count(),
+            'no_revisados' => $noRevisados,
+            'costo_antes' => round($costBefore + $noRevisados['costo'], 2),
+            'venta_antes' => round($saleBefore + $noRevisados['venta'], 2),
+            'costo_despues' => round($costAfter + $noRevisados['costo'], 2),
+            'venta_despues' => round($saleAfter + $noRevisados['venta'], 2),
+            'diferencia_costo' => round($costAfter - $costBefore, 2),
+            'diferencia_venta' => round($saleAfter - $saleBefore, 2),
+        ];
+    }
+
+    private function reportContext(Request $request): ContextoReporte
+    {
+        $empresa = Configuracion::first();
+        $filtros = [];
+        if ($search = trim((string) $request->input('q'))) {
+            $filtros['Búsqueda'] = $search;
+        }
+        if ($estado = trim((string) $request->input('estado'))) {
+            $filtros['Estado'] = $estado === 'BORRADOR' ? 'EN REVISIÓN' : $estado;
+        }
+
+        return new ContextoReporte(
+            empresa: $empresa?->nombre_empresa ?: 'Bean',
+            nit: $empresa?->nit,
+            usuario: $request->user()?->name ?? $request->user()?->username ?? '-',
+            generado: now(),
+            desde: $request->filled('desde') ? Carbon::parse($request->input('desde'))->startOfDay() : null,
+            hasta: $request->filled('hasta') ? Carbon::parse($request->input('hasta'))->endOfDay() : null,
+            filtros: $filtros,
+        );
     }
 
     public function store(Request $request)

@@ -110,6 +110,7 @@ class CompraController extends Controller
             'detalles.*.producto_id' => ['required', 'exists:productos,id'],
             'detalles.*.cantidad' => ['required', 'numeric', 'min:0.001', 'decimal:0,3'],
             'detalles.*.precio_unitario' => ['required', 'numeric', 'min:0'],
+            'detalles.*.precio_venta' => ['nullable', 'numeric', 'min:0'],
             'detalles.*.lote' => ['nullable', 'string', 'max:100'],
             'detalles.*.fecha_vencimiento' => ['nullable', 'date'],
         ]);
@@ -154,7 +155,13 @@ class CompraController extends Controller
                     'cantidad_inicial' => $quantity, 'cantidad_disponible' => $quantity,
                 ]);
                 $product->increment('stock_inicial', $quantity);
-                $product->update(['precio_compra' => $unitPrice]);
+                // Al comprar mas caro el comprador puede reajustar el precio de venta desde el carrito.
+                $salePrice = round((float) ($item['precio_venta'] ?? 0), 2);
+                $changes = ['precio_compra' => $unitPrice];
+                if ($salePrice > 0) {
+                    $changes['precio_venta'] = $salePrice;
+                }
+                $product->update($changes);
             }
 
             return $purchase;

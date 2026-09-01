@@ -2,7 +2,9 @@
   <q-page class="q-pa-sm">
     <div class="row items-center q-mb-sm">
       <div><div class="text-subtitle1 text-weight-bold">Almacenes</div><div class="text-caption text-grey-7">Revisiones del stock físico de la tienda</div></div>
-      <q-space/><q-btn v-if="can('Crear Almacenes')" dense unelevated color="primary" icon="add" label="Nueva revisión" no-caps @click="openCreate"/>
+      <q-space/>
+      <q-btn dense flat color="green-8" icon="download" label="Excel" no-caps class="q-mr-xs" :loading="exporting" @click="exportExcel"><q-tooltip>Exportar el listado con los filtros aplicados</q-tooltip></q-btn>
+      <q-btn v-if="can('Crear Almacenes')" dense unelevated color="primary" icon="add" label="Nueva revisión" no-caps @click="openCreate"/>
     </div>
 
     <div class="kpi-row q-mb-sm">
@@ -53,7 +55,7 @@
 import { getCurrentInstance, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 const {proxy}=getCurrentInstance(),router=useRouter()
-const rows=ref([]),loading=ref(false),createDialog=ref(false),creating=ref(false)
+const rows=ref([]),loading=ref(false),createDialog=ref(false),creating=ref(false),exporting=ref(false)
 const summary=reactive({en_revision:0,aplicados:0,productos_revisados:0,diferencia_valor:0})
 const filters=reactive({q:'',desde:'',hasta:'',estado:null})
 const form=reactive({descripcion:'',observacion:''})
@@ -84,6 +86,17 @@ async function load(){
   finally{loading.value=false}
 }
 function reload(){pagination.value.page=1;load()}
+// El Excel sale con los mismos filtros de la pantalla, pero sin paginar: van todas las revisiones.
+async function exportExcel(){
+  exporting.value=true
+  try{
+    const {q,desde,hasta,estado}=params()
+    const response=await proxy.$axios.get('/almacenes-exportar/excel',{params:{q,desde,hasta,estado},responseType:'blob'})
+    const url=URL.createObjectURL(response.data),a=document.createElement('a')
+    a.href=url;a.download=`almacenes_${new Date().toISOString().slice(0,10)}.xlsx`;a.click();URL.revokeObjectURL(url)
+  }catch{proxy.$alert.error('No se pudo exportar el listado')}
+  finally{exporting.value=false}
+}
 function onRequest(request){pagination.value.page=request.pagination.page;pagination.value.rowsPerPage=request.pagination.rowsPerPage;load()}
 function openCreate(){Object.assign(form,{descripcion:'',observacion:''});createDialog.value=true}
 async function create(){

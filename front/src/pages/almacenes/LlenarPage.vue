@@ -8,6 +8,7 @@
         <div class="text-caption text-grey-7">{{header.descripcion||'Cuenta el stock físico de la tienda'}} · {{items.length}} productos revisados</div>
       </div>
       <q-space/>
+      <q-btn dense flat color="green-8" icon="download" label="Excel" no-caps class="q-mr-xs" :loading="exporting" @click="exportExcel"><q-tooltip>Exportar lo contado en esta revisión</q-tooltip></q-btn>
       <q-btn dense flat icon="insights" label="Avance" no-caps class="q-mr-xs" :to="`/almacenes/${id}/avance`"/>
       <q-btn dense flat icon="warehouse" label="Almacenes" no-caps to="/almacenes"/>
     </div>
@@ -52,11 +53,14 @@
             <q-space/>
             <span class="text-caption text-grey-6 q-mr-sm">{{refreshedLabel}}</span>
             <q-btn dense flat round size="sm" icon="refresh" :loading="refreshing" @click="loadAlmacen()"><q-tooltip>Ver lo que cargaron los demás</q-tooltip></q-btn>
-            <q-badge color="primary" :label="items.length"/>
+            <q-badge color="primary" :label="itemSearch?`${filteredItems.length}/${items.length}`:items.length"/>
           </q-card-section>
           <q-separator/>
-          <q-list v-if="items.length" separator class="count-list">
-            <q-item v-for="item in items" :key="item.id" dense class="q-px-sm">
+          <q-card-section v-if="items.length" class="q-px-sm q-py-xs">
+            <q-input v-model="itemSearch" dense outlined clearable debounce="150" placeholder="¿Ya conté este producto? Busca por nombre, código o quién contó"><template #prepend><q-icon name="search"/></template></q-input>
+          </q-card-section>
+          <q-list v-if="filteredItems.length" separator class="count-list">
+            <q-item v-for="item in filteredItems" :key="item.id" dense class="q-px-sm">
               <q-item-section avatar class="count-thumb"><q-avatar rounded size="30px" color="grey-2"><img v-if="item.foto" :src="photoUrl(item.foto)"/><q-icon v-else name="inventory_2" size="16px"/></q-avatar></q-item-section>
               <q-item-section>
                 <q-item-label lines="1" class="text-caption text-weight-bold">{{item.nombre}}</q-item-label>
@@ -78,6 +82,7 @@
               </q-item-section>
             </q-item>
           </q-list>
+          <q-card-section v-else-if="items.length" class="text-center text-grey-6 q-py-lg"><q-icon name="search_off" size="42px"/><div>Ningún producto revisado coincide con «{{itemSearch}}»</div><div class="text-caption">Todavía no lo contaste; búscalo arriba para agregarlo.</div></q-card-section>
           <q-card-section v-else class="text-center text-grey-6 q-py-xl"><q-icon name="inventory" size="42px"/><div>Todavía no se contó ningún producto</div></q-card-section>
           <q-separator/>
           <q-card-actions class="q-pa-sm">
@@ -134,7 +139,7 @@ import { useRoute, useRouter } from 'vue-router'
 const {proxy}=getCurrentInstance(),route=useRoute(),router=useRouter()
 const id=Number(route.params.id)
 const header=reactive({numero:'',estado:'BORRADOR',descripcion:'',observacion:''})
-const items=ref([]),refreshing=ref(false),refreshedAt=ref(null),savingLine=ref(false)
+const items=ref([]),itemSearch=ref(''),refreshing=ref(false),refreshedAt=ref(null),savingLine=ref(false),exporting=ref(false)
 const products=ref([]),categories=ref([]),search=ref(''),category=ref(null),searchInput=ref(null),loadingProducts=ref(false)
 const productsPage=ref(1),productsLastPage=ref(1),productsTotal=ref(0),productsFrom=ref(0),productsTo=ref(0),productsPerPage=18
 const countDialog=ref(false)
@@ -146,6 +151,11 @@ const shortDate=value=>value?new Date(`${String(value).slice(0,10)}T12:00:00`).t
 const editable=computed(()=>header.estado==='BORRADOR')
 const stateColor=computed(()=>header.estado==='APLICADO'?'positive':header.estado==='ANULADO'?'grey-6':'orange')
 const countedIds=computed(()=>new Set(items.value.map(i=>i.producto_id)))
+// Buscador de lo ya revisado: sirve para confirmar si un producto se contó sin recorrer toda la lista.
+const filteredItems=computed(()=>{
+  const q=String(itemSearch.value||'').trim().toLowerCase();if(!q)return items.value
+  return items.value.filter(i=>[i.nombre,i.codigo,i.usuario_nombre].some(v=>String(v||'').toLowerCase().includes(q)))
+})
 const refreshedLabel=computed(()=>refreshedAt.value?`Actualizado ${refreshedAt.value.toLocaleTimeString('es-BO')}`:'')
 // El stock del sistema se lee del producto en vivo; si el producto ya no viene, queda el que se guardó al contar.
 const systemStock=item=>Number(item.producto?.stock_inicial??item.stock_sistema??0)
@@ -241,6 +251,16 @@ function removeItem(item){
     catch(e){proxy.$alert.error(e.response?.data?.message||'No se pudo quitar el producto')}
   })
 }
+// Excel de lo contado hasta ahora: sirve para revisar en papel lo que cargó el equipo.
+async function exportExcel(){
+  exporting.value=true
+  try{
+    const response=await proxy.$axios.get(`/almacenes/${id}/exportar/excel`,{responseType:'blob'})
+    const url=URL.createObjectURL(response.data),a=document.createElement('a')
+    a.href=url;a.download=`revision_${header.numero||id}.xlsx`;a.click();URL.revokeObjectURL(url)
+  }catch{proxy.$alert.error('No se pudo exportar la revisión')}
+  finally{exporting.value=false}
+}
 async function loadAlmacen(silent=false){
   if(!silent)refreshing.value=true
   try{
@@ -269,7 +289,7 @@ onBeforeUnmount(()=>{clearTimeout(productsSearchTimer);clearInterval(refreshTime
 .product-image{position:relative;height:54px;background:#fffaf3;display:flex;align-items:center;justify-content:center}.product-image img{width:100%;height:100%;object-fit:contain}
 .done-mark{position:absolute;top:2px;right:2px;background:#fff;border-radius:50%}
 .product-name{height:30px;font-size:11px;line-height:15px}.product-meta{font-size:9px;line-height:13px;white-space:nowrap;overflow:hidden}
-.count-list{max-height:calc(100vh - 250px);overflow:auto}.count-thumb{min-width:38px;padding-right:6px}.count-meta{font-size:11px;line-height:14px}
+.count-list{max-height:calc(100vh - 296px);overflow:auto}.count-thumb{min-width:38px;padding-right:6px}.count-meta{font-size:11px;line-height:14px}
 .count-lots{margin-top:2px;line-height:16px}
 .lot-row{display:flex;align-items:center;gap:4px;margin-bottom:4px}
 .lot-input{height:28px;border:1px solid #cfd8dc;border-radius:4px;padding:2px 6px;font-size:12px;color:#263238;background:#fff;min-width:0;flex:1 1 auto}

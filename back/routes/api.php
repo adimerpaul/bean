@@ -71,10 +71,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/almacenes', [AlmacenController::class, 'index']);
     Route::get('/almacenes-resumen', [AlmacenController::class, 'summary']);
+    Route::get('/almacenes-exportar/excel', [AlmacenController::class, 'exportExcel']);
     Route::post('/almacenes', [AlmacenController::class, 'store']);
     Route::get('/almacenes/{almacen}', [AlmacenController::class, 'show']);
     Route::put('/almacenes/{almacen}', [AlmacenController::class, 'update']);
     Route::get('/almacenes/{almacen}/avance', [AlmacenController::class, 'progress']);
+    Route::get('/almacenes/{almacen}/exportar/excel', [AlmacenController::class, 'exportDetalleExcel']);
+    Route::get('/almacenes/{almacen}/avance-exportar/excel', [AlmacenController::class, 'exportAvanceExcel']);
+    Route::get('/almacenes/{almacen}/avance-exportar/pdf', [AlmacenController::class, 'exportAvancePdf']);
+    Route::get('/almacenes/{almacen}/capital-exportar/excel', [AlmacenController::class, 'exportCapitalExcel']);
+    Route::get('/almacenes/{almacen}/capital-exportar/pdf', [AlmacenController::class, 'exportCapitalPdf']);
     Route::post('/almacenes/{almacen}/detalles', [AlmacenController::class, 'storeDetalle']);
     Route::put('/almacenes/{almacen}/detalles/{detalle}', [AlmacenController::class, 'updateDetalle']);
     Route::delete('/almacenes/{almacen}/detalles/{detalle}', [AlmacenController::class, 'destroyDetalle']);

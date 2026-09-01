@@ -39,46 +39,102 @@ class VentaController extends Controller
         ]);
     }
 
+    /**
+     * Panel de inicio. El rango se elige con ?periodo=hoy|ayer|semana|mes|anio (por defecto la semana)
+     * y todos los indicadores, no sólo la serie, se calculan dentro de ese rango.
+     */
     public function dashboard(Request $request)
     {
         $this->authorizeAction($request, 'Ver Estadísticas');
-        $sales = Venta::where('estado', 'COMPLETADA');
-        $total = (float) (clone $sales)->sum('total');
-        $count = (clone $sales)->count();
-        $items = (float) DB::table('venta_detalles')
+        [$period, $from, $to, $granularity] = $this->dashboardRange((string) $request->query('periodo', 'semana'));
+
+        $sales = fn () => Venta::where('estado', 'COMPLETADA')->whereBetween('fecha', [$from, $to]);
+        $details = fn () => DB::table('venta_detalles')
             ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
             ->where('ventas.estado', 'COMPLETADA')
-            ->whereNull('ventas.deleted_at')->whereNull('venta_detalles.deleted_at')
-            ->sum('venta_detalles.cantidad');
-        $profit = (float) DB::table('venta_detalles')
-            ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
-            ->where('ventas.estado', 'COMPLETADA')
-            ->whereNull('ventas.deleted_at')->whereNull('venta_detalles.deleted_at')
+            ->whereBetween('ventas.fecha', [$from, $to])
+            ->whereNull('ventas.deleted_at')->whereNull('venta_detalles.deleted_at');
+
+        $total = (float) $sales()->sum('total');
+        $count = (int) $sales()->count();
+        $items = (float) $details()->sum('venta_detalles.cantidad');
+        $profit = (float) $details()
             ->selectRaw('COALESCE(SUM(((venta_detalles.precio_venta - venta_detalles.precio_compra) * venta_detalles.cantidad) - venta_detalles.descuento), 0) AS total')
             ->value('total');
 
-        $dailyRaw = Venta::where('estado', 'COMPLETADA')->where('fecha', '>=', now()->subDays(6)->startOfDay())
-            ->selectRaw('DATE(fecha) as dia, SUM(total) as total')->groupBy('dia')->pluck('total', 'dia');
-        $daily = collect(range(6, 0))->map(function ($days) use ($dailyRaw) {
-            $date = now()->subDays($days);
+        $bucket = $this->periodBucket($granularity);
+        $rows = $sales()->selectRaw("$bucket as periodo, SUM(total) as total, COUNT(*) as cantidad")
+            ->groupBy('periodo')->get()->keyBy('periodo');
+        $serie = $this->dashboardSeries($from, $to, $granularity, $rows);
 
-            return ['label' => $date->format('d/m'), 'total' => (float) ($dailyRaw[$date->toDateString()] ?? 0)];
-        });
-
-        $byUser = Venta::where('estado', 'COMPLETADA')->selectRaw('usuario_nombre as nombre, SUM(total) as total')
+        $byUser = $sales()->selectRaw('usuario_nombre as nombre, SUM(total) as total')
             ->groupBy('usuario_nombre')->orderByDesc('total')->limit(8)->get();
-        $payments = Venta::where('estado', 'COMPLETADA')->selectRaw('tipo_pago as nombre, SUM(total) as total')
+        $payments = $sales()->selectRaw('tipo_pago as nombre, SUM(total) as total')
             ->groupBy('tipo_pago')->get();
-        $topProducts = DB::table('venta_detalles')->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
-            ->where('ventas.estado', 'COMPLETADA')->whereNull('ventas.deleted_at')->whereNull('venta_detalles.deleted_at')
+        $topProducts = $details()
             ->selectRaw('venta_detalles.producto_id, venta_detalles.nombre, venta_detalles.foto, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.total) as total')
             ->groupBy('venta_detalles.producto_id', 'venta_detalles.nombre', 'venta_detalles.foto')
             ->orderByDesc('cantidad')->limit(8)->get();
 
         return response()->json([
+            'periodo' => ['clave' => $period, 'titulo' => $this->periodTitle($period), 'desde' => $from->toDateTimeString(), 'hasta' => $to->toDateTimeString(), 'granularidad' => $granularity],
             'indicadores' => ['ventas' => $total, 'ganancia' => $profit, 'productos' => $items, 'cantidad_ventas' => $count, 'ticket_promedio' => $count ? $total / $count : 0],
-            'diario' => $daily, 'usuarios' => $byUser, 'pagos' => $payments, 'productos_top' => $topProducts,
+            'diario' => $serie, 'usuarios' => $byUser, 'pagos' => $payments, 'productos_top' => $topProducts,
         ]);
+    }
+
+    /** Rango del panel: [clave, desde, hasta, granularidad de la serie]. */
+    private function dashboardRange(string $period): array
+    {
+        return match ($period) {
+            'hoy' => ['hoy', now()->startOfDay(), now()->endOfDay(), 'hora'],
+            'ayer' => ['ayer', now()->subDay()->startOfDay(), now()->subDay()->endOfDay(), 'hora'],
+            'mes' => ['mes', now()->subDays(29)->startOfDay(), now()->endOfDay(), 'dia'],
+            'anio' => ['anio', now()->subMonths(11)->startOfMonth(), now()->endOfDay(), 'mes'],
+            default => ['semana', now()->subDays(6)->startOfDay(), now()->endOfDay(), 'dia'],
+        };
+    }
+
+    private function periodTitle(string $period): string
+    {
+        return ['hoy' => 'Hoy', 'ayer' => 'Ayer', 'mes' => 'Últimos 30 días', 'anio' => 'Últimos 12 meses'][$period] ?? 'Últimos 7 días';
+    }
+
+    /** Agrupación por hora/día/mes; MySQL y el SQLite de los tests usan los mismos tokens de formato. */
+    private function periodBucket(string $granularity): string
+    {
+        $format = ['hora' => '%Y-%m-%d %H', 'mes' => '%Y-%m'][$granularity] ?? '%Y-%m-%d';
+
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('$format', fecha)"
+            : "DATE_FORMAT(fecha, '$format')";
+    }
+
+    /** Rellena los huecos del rango para que la serie no salte periodos sin ventas. */
+    private function dashboardSeries($from, $to, string $granularity, $rows)
+    {
+        $months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        $serie = [];
+        $cursor = $from->copy();
+        while ($cursor <= $to) {
+            if ($granularity === 'hora') {
+                $key = $cursor->format('Y-m-d H');
+                $label = $cursor->format('H').':00';
+                $cursor->addHour();
+            } elseif ($granularity === 'mes') {
+                $key = $cursor->format('Y-m');
+                $label = $months[$cursor->month - 1];
+                $cursor->addMonth();
+            } else {
+                $key = $cursor->format('Y-m-d');
+                $label = $cursor->format('d/m');
+                $cursor->addDay();
+            }
+            $row = $rows[$key] ?? null;
+            $serie[] = ['label' => $label, 'total' => (float) ($row->total ?? 0), 'cantidad' => (int) ($row->cantidad ?? 0)];
+        }
+
+        return $serie;
     }
 
     public function exportExcel(Request $request)

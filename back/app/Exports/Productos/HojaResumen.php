@@ -2,6 +2,8 @@
 
 namespace App\Exports\Productos;
 
+use App\Exports\Comun\ContextoReporte;
+use App\Exports\Comun\HojaBase;
 use Illuminate\Support\Collection;
 
 /**

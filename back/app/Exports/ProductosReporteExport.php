@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Exports\Productos\ContextoReporte;
+use App\Exports\Comun\ContextoReporte;
 use App\Exports\Productos\HojaCompras;
 use App\Exports\Productos\HojaInventario;
 use App\Exports\Productos\HojaResumen;

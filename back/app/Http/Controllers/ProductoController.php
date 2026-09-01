@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\Productos\ContextoReporte;
+use App\Exports\Comun\ContextoReporte;
 use App\Exports\ProductosReporteExport;
 use App\Models\Categoria;
 use App\Models\Configuracion;
