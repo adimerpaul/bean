@@ -5,12 +5,17 @@ use App\Http\Controllers\BajaController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\TiendaController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VentaController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [UserController::class, 'login']);
 Route::get('/configuracion', [ConfiguracionController::class, 'show']);
+
+// Tienda virtual pública: la cartilla que ve el cliente antes de pedir por WhatsApp.
+Route::get('/tienda', [TiendaController::class, 'show']);
+Route::get('/tienda/productos', [TiendaController::class, 'productos']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [UserController::class, 'me']);

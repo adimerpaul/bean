@@ -4,6 +4,14 @@ const routes = [
     component: () => import('pages/LoginPage.vue')
   },
   {
+    // Tienda virtual pública: no requiere sesión.
+    path: '/tienda',
+    component: () => import('layouts/TiendaLayout.vue'),
+    children: [
+      { path: '', component: () => import('pages/tienda/IndexPage.vue') }
+    ]
+  },
+  {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [

@@ -128,6 +128,8 @@ const companyLogo = ref(cachedCompany.logo_url || '/bean-logo.svg')
 
 const links = [
   { title: 'Inicio',    icon: 'dashboard',   link: '/',         can: null },
+  // Vitrina pública: la ve cualquier usuario del sistema y también los clientes sin sesión.
+  { title: 'Tienda virtual', icon: 'storefront', link: '/tienda', can: null },
   { title: 'Usuarios',  icon: 'people',      link: '/usuarios', can: 'Ver Usuarios' },
   { title: 'Productos', icon: 'inventory_2', link: '/productos', can: 'Ver Productos' },
   { title: 'Nueva venta', icon: 'point_of_sale', link: '/ventas/nueva', can: 'Crear Ventas' },

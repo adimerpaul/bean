@@ -27,7 +27,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
   })
 
   Router.beforeEach((to) => {
-    if (to.path === '/login') return true
+    if (to.path === '/login' || to.path.startsWith('/tienda')) return true
     if (!localStorage.getItem('tokenBean')) return '/login'
     return true
   })
