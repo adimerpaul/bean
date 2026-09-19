@@ -213,4 +213,38 @@ class AlmacenTest extends TestCase
             ->assertJsonPath('total_productos', Producto::count())
             ->assertJsonPath('detalles.0.diferencia_actual', -2);
     }
+
+    /** La pantalla de conteo pide al catálogo sólo lo que falta contar, y lo ordena por costo o cantidad. */
+    public function test_products_can_be_filtered_by_what_is_still_pending_in_the_review(): void
+    {
+        $this->admin();
+        $contado = Producto::first();
+        $almacen = $this->draft();
+        $this->postJson("/api/almacenes/{$almacen['id']}/detalles", ['producto_id' => $contado->id, 'cantidad' => 3])->assertCreated();
+
+        $pendientes = $this->getJson("/api/productos?almacen_id={$almacen['id']}&conteo=pendientes&per_page=500")->assertOk()->json();
+        $this->assertSame(Producto::count() - 1, $pendientes['total']);
+        $this->assertNotContains($contado->id, array_column($pendientes['data'], 'id'));
+
+        $contados = $this->getJson("/api/productos?almacen_id={$almacen['id']}&conteo=contados")->assertOk()->json();
+        $this->assertSame([$contado->id], array_column($contados['data'], 'id'));
+
+        // Sin el filtro de conteo el listado sigue siendo el catálogo completo.
+        $this->getJson("/api/productos?almacen_id={$almacen['id']}")->assertOk()->assertJsonPath('total', Producto::count());
+    }
+
+    public function test_products_can_be_ordered_by_the_money_parked_in_stock(): void
+    {
+        $this->admin();
+        [$barato, $caro] = Producto::orderBy('id')->take(2)->get()->all();
+        Producto::query()->update(['stock_inicial' => 0, 'precio_compra' => 0]);
+        $barato->update(['stock_inicial' => 2, 'precio_compra' => 10]);   // 20 Bs
+        $caro->update(['stock_inicial' => 5, 'precio_compra' => 30]);     // 150 Bs
+
+        $data = $this->getJson('/api/productos?orden=costo_desc&per_page=2')->assertOk()->json('data');
+        $this->assertSame([$caro->id, $barato->id], array_column($data, 'id'));
+
+        $data = $this->getJson('/api/productos?orden=stock_desc&per_page=2')->assertOk()->json('data');
+        $this->assertSame([$caro->id, $barato->id], array_column($data, 'id'));
+    }
 }

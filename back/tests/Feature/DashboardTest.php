@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Producto;
 use App\Models\User;
+use App\Models\Venta;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -28,7 +29,7 @@ class DashboardTest extends TestCase
             'detalles' => [['producto_id' => $product->id, 'cantidad' => $quantity, 'precio_venta' => 10]],
         ])->assertCreated()->json('id');
 
-        \App\Models\Venta::whereKey($id)->update(['fecha' => $date]);
+        Venta::whereKey($id)->update(['fecha' => $date]);
     }
 
     public function test_dashboard_defaults_to_the_week_and_fills_empty_days(): void
@@ -70,5 +71,42 @@ class DashboardTest extends TestCase
         $year->assertJsonPath('periodo.granularidad', 'mes');
         $this->assertCount(12, $year->json('diario'));
         $this->assertSame(90.0, (float) $year->json('indicadores.ventas'));
+    }
+
+    public function test_custom_range_limits_the_panel_to_the_chosen_dates(): void
+    {
+        $this->admin();
+        $product = Producto::first();
+        $product->update(['stock_inicial' => 500]);
+        $this->sell($product, 2, now()->subDays(10)->setTime(9, 0));
+        $this->sell($product, 4, now()->subDays(3)->setTime(9, 0));
+
+        $from = now()->subDays(11)->toDateString();
+        $to = now()->subDays(9)->toDateString();
+        $range = $this->getJson("/api/dashboard?periodo=rango&desde=$from&hasta=$to")->assertOk();
+
+        $range->assertJsonPath('periodo.clave', 'rango')->assertJsonPath('periodo.granularidad', 'dia');
+        $this->assertCount(3, $range->json('diario'));
+        $this->assertSame(20.0, (float) $range->json('indicadores.ventas'));
+
+        // Fechas al revés: se ordenan solas en lugar de devolver un rango vacío.
+        $inverted = $this->getJson("/api/dashboard?periodo=rango&desde=$to&hasta=$from")->assertOk();
+        $this->assertSame(20.0, (float) $inverted->json('indicadores.ventas'));
+    }
+
+    public function test_top_lists_group_by_product_and_by_category_with_profit(): void
+    {
+        $this->admin();
+        $product = Producto::first();
+        $product->update(['stock_inicial' => 500, 'precio_compra' => 4]);
+        $this->sell($product, 3, now()->setTime(9, 0));
+
+        $response = $this->getJson('/api/dashboard?periodo=hoy')->assertOk();
+
+        $response->assertJsonPath('productos_top.0.nombre', $product->nombre);
+        $this->assertSame(18.0, (float) $response->json('productos_top.0.ganancia'));
+        $this->assertCount(1, $response->json('categorias_top'));
+        $this->assertSame(18.0, (float) $response->json('categorias_top.0.ganancia'));
+        $this->assertSame(30.0, (float) $response->json('categorias_top.0.total'));
     }
 }

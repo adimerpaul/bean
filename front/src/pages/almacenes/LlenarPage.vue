@@ -5,7 +5,7 @@
         <div class="text-subtitle1 text-weight-bold">Revisión {{header.numero}}
           <q-badge :color="stateColor" :label="header.estado==='BORRADOR'?'EN REVISIÓN':header.estado" class="q-ml-xs"/>
         </div>
-        <div class="text-caption text-grey-7">{{header.descripcion||'Cuenta el stock físico de la tienda'}} · {{items.length}} productos revisados</div>
+        <div class="text-caption text-grey-7">{{header.descripcion||'Cuenta el stock físico de la tienda'}} · {{items.length}} revisados<span v-if="pending>0"> · faltan <b class="text-deep-orange-8">{{pending}}</b></span></div>
       </div>
       <q-space/>
       <q-btn dense flat color="green-8" icon="download" label="Excel" no-caps class="q-mr-xs" :loading="exporting" @click="exportExcel"><q-tooltip>Exportar lo contado en esta revisión</q-tooltip></q-btn>
@@ -21,26 +21,32 @@
     <div class="row q-col-gutter-sm">
       <div v-if="editable" class="col-12 col-md-6">
         <q-card flat bordered>
-          <q-card-section class="row q-col-gutter-sm q-pa-sm">
+          <q-card-section class="row q-col-gutter-xs q-pa-xs">
             <q-input ref="searchInput" v-model="search" dense outlined autofocus clearable class="col-12" placeholder="Buscar o escanear producto" @update:model-value="handleSearchInput" @keydown.enter.prevent="openExact($event.target.value)"><template #prepend><q-icon name="qr_code_scanner"/></template></q-input>
-            <q-select v-model="category" :options="categories" option-label="nombre" dense outlined clearable label="Categoría" class="col-12" @update:model-value="resetProductsPage"/>
+            <q-select v-model="category" :options="categories" option-label="nombre" dense outlined clearable options-dense label="Categoría" class="col-6" @update:model-value="resetProductsPage"/>
+            <q-select v-model="order" :options="orders" emit-value map-options dense outlined options-dense label="Ordenar por" class="col-6" @update:model-value="resetProductsPage"><template #prepend><q-icon name="sort"/></template></q-select>
+            <div class="col-12 row items-center q-gutter-x-xs">
+              <!-- Filtro por estado del conteo: lo que falta contar sale del backend, no de esta página. -->
+              <q-btn-toggle v-model="countFilter" :options="countFilters" dense unelevated no-caps size="sm" toggle-color="primary" color="grey-3" text-color="grey-8" @update:model-value="resetProductsPage"/>
+              <q-space/>
+              <span class="text-caption text-grey-7">{{productsFrom}}–{{productsTo}} de {{productsTotal}}</span>
+            </div>
           </q-card-section>
           <q-separator/>
           <q-card-section v-if="loadingProducts" class="flex flex-center product-loading"><q-spinner color="primary" size="38px"/></q-card-section>
-          <q-card-section v-else-if="!products.length" class="text-center text-grey-6 q-py-xl"><q-icon name="search_off" size="42px"/><div>Sin productos para esta búsqueda</div></q-card-section>
-          <q-card-section v-else class="q-pa-sm product-grid">
+          <q-card-section v-else-if="!products.length" class="text-center text-grey-6 q-py-lg"><q-icon name="search_off" size="34px"/><div class="text-caption">{{countFilter==='pendientes'?'No queda nada por contar con este filtro':'Sin productos para esta búsqueda'}}</div></q-card-section>
+          <q-card-section v-else class="q-pa-xs product-grid">
             <q-card v-for="product in products" :key="product.id" flat bordered class="product-card cursor-pointer" :class="{'product-card--done':countedIds.has(product.id)}" @click="openCount(product)">
-              <div class="product-image"><img v-if="product.foto" :src="photoUrl(product.foto)"/><q-icon v-else name="inventory_2" size="30px" color="grey-4"/><q-icon v-if="countedIds.has(product.id)" name="task_alt" color="positive" size="18px" class="done-mark"/></div>
-              <q-card-section class="q-pa-xs">
+              <div class="product-image"><img v-if="product.foto" :src="photoUrl(product.foto)"/><q-icon v-else name="inventory_2" size="24px" color="grey-4"/><q-icon v-if="countedIds.has(product.id)" name="task_alt" color="positive" size="15px" class="done-mark"/></div>
+              <div class="q-px-xs q-pb-xs">
                 <div class="text-weight-bold ellipsis-2-lines product-name">{{product.nombre}}</div>
-                <div class="product-meta text-grey-7">{{product.codigo}} · {{product.unidad}}</div>
-                <div class="product-meta">Sistema: <b>{{qty(product.stock_inicial,product.unidad)}}</b></div>
-              </q-card-section>
+                <div class="product-meta text-grey-7 ellipsis">{{product.codigo}}</div>
+                <div class="product-meta"><b>{{qty(product.stock_inicial,product.unidad)}}</b> {{product.unidad}} · <span class="text-deep-orange-8">Bs {{money(cost(product))}}</span></div>
+              </div>
             </q-card>
           </q-card-section>
           <q-separator/>
-          <q-card-actions class="row items-center justify-between q-px-sm">
-            <span class="text-caption text-grey-7">{{productsFrom}}–{{productsTo}} de {{productsTotal}}</span>
+          <q-card-actions class="row items-center justify-center q-py-none q-px-xs">
             <q-pagination v-model="productsPage" :max="productsLastPage" :max-pages="5" boundary-numbers direction-links color="primary" size="sm" @update:model-value="loadProducts"/>
           </q-card-actions>
         </q-card>
@@ -60,18 +66,17 @@
             <q-input v-model="itemSearch" dense outlined clearable debounce="150" placeholder="¿Ya conté este producto? Busca por nombre, código o quién contó"><template #prepend><q-icon name="search"/></template></q-input>
           </q-card-section>
           <q-list v-if="filteredItems.length" separator class="count-list">
-            <q-item v-for="item in filteredItems" :key="item.id" dense class="q-px-sm">
-              <q-item-section avatar class="count-thumb"><q-avatar rounded size="30px" color="grey-2"><img v-if="item.foto" :src="photoUrl(item.foto)"/><q-icon v-else name="inventory_2" size="16px"/></q-avatar></q-item-section>
+            <q-item v-for="item in filteredItems" :key="item.id" dense class="q-px-sm count-item">
+              <q-item-section avatar class="count-thumb"><q-avatar rounded size="26px" color="grey-2"><img v-if="item.foto" :src="photoUrl(item.foto)"/><q-icon v-else name="inventory_2" size="14px"/></q-avatar></q-item-section>
               <q-item-section>
-                <q-item-label lines="1" class="text-caption text-weight-bold">{{item.nombre}}</q-item-label>
+                <q-item-label lines="1" class="count-name text-weight-bold">{{item.nombre}}</q-item-label>
                 <q-item-label caption class="count-meta">
-                  Sistema {{qty(systemStock(item),item.unidad)}} · Contado <b>{{qty(item.cantidad,item.unidad)}}</b>
+                  Sistema {{qty(systemStock(item),item.unidad)}} · Contado <b>{{qty(item.cantidad,item.unidad)}}</b> · Bs {{money(item.cantidad*item.precio_compra)}} · {{item.usuario_nombre||'—'}}
                 </q-item-label>
                 <q-item-label v-if="item.conteos?.length" caption class="count-lots">
                   <q-badge v-for="lot in item.conteos" :key="lot.id" outline color="deep-orange" class="q-mr-xs"
                            :label="`${lot.lote||'sin lote'} · ${qty(lot.cantidad,item.unidad)}${lot.fecha_vencimiento?' · vence '+shortDate(lot.fecha_vencimiento):''}`"/>
                 </q-item-label>
-                <q-item-label caption class="text-grey-6">Contó {{item.usuario_nombre||'—'}}</q-item-label>
               </q-item-section>
               <q-item-section side>
                 <div class="row items-center no-wrap">
@@ -141,12 +146,17 @@ const id=Number(route.params.id)
 const header=reactive({numero:'',estado:'BORRADOR',descripcion:'',observacion:''})
 const items=ref([]),itemSearch=ref(''),refreshing=ref(false),refreshedAt=ref(null),savingLine=ref(false),exporting=ref(false)
 const products=ref([]),categories=ref([]),search=ref(''),category=ref(null),searchInput=ref(null),loadingProducts=ref(false)
-const productsPage=ref(1),productsLastPage=ref(1),productsTotal=ref(0),productsFrom=ref(0),productsTo=ref(0),productsPerPage=18
+const productsPage=ref(1),productsLastPage=ref(1),productsTotal=ref(0),productsFrom=ref(0),productsTo=ref(0),productsPerPage=36
+// Qué mostrar de la grilla y en qué orden: lo que falta contar primero, y por cantidad o por costo para atacar lo caro.
+const countFilter=ref('pendientes'),order=ref('nombre_asc'),catalogTotal=ref(0)
+const countFilters=[{label:'Faltan',value:'pendientes'},{label:'Contados',value:'contados'},{label:'Todos',value:''}]
+const orders=[{label:'Nombre (A-Z)',value:'nombre_asc'},{label:'Mayor cantidad',value:'stock_desc'},{label:'Menor cantidad',value:'stock_asc'},{label:'Mayor costo (Bs)',value:'costo_desc'},{label:'Menor costo (Bs)',value:'costo_asc'},{label:'Categoría',value:'categoria_asc'}]
 const countDialog=ref(false)
 const form=reactive({detalle_id:null,producto_id:null,codigo:'',nombre:'',unidad:'UNIDAD',foto:null,stock_sistema:0,cantidad:0,observacion:'',conteos:[]})
 let productsSearchTimer=null,refreshTimer=null
 const photoUrl=path=>`${proxy.$imgBase}/images/${path}`
 const qty=(value,unit)=>Number(value||0).toFixed(unit==='KG'?3:0)
+const money=v=>Number(v||0).toFixed(2),cost=p=>Number(p.stock_inicial||0)*Number(p.precio_compra||0)
 const shortDate=value=>value?new Date(`${String(value).slice(0,10)}T12:00:00`).toLocaleDateString('es-BO'):''
 const editable=computed(()=>header.estado==='BORRADOR')
 const stateColor=computed(()=>header.estado==='APLICADO'?'positive':header.estado==='ANULADO'?'grey-6':'orange')
@@ -157,6 +167,8 @@ const filteredItems=computed(()=>{
   return items.value.filter(i=>[i.nombre,i.codigo,i.usuario_nombre].some(v=>String(v||'').toLowerCase().includes(q)))
 })
 const refreshedLabel=computed(()=>refreshedAt.value?`Actualizado ${refreshedAt.value.toLocaleTimeString('es-BO')}`:'')
+// Lo que falta contar es todo el catálogo menos lo ya revisado, que se refresca solo cada 10 s.
+const pending=computed(()=>Math.max(catalogTotal.value-items.value.length,0))
 // El stock del sistema se lee del producto en vivo; si el producto ya no viene, queda el que se guardó al contar.
 const systemStock=item=>Number(item.producto?.stock_inicial??item.stock_sistema??0)
 const difference=item=>Number((Number(item.cantidad||0)-systemStock(item)).toFixed(3))
@@ -167,12 +179,16 @@ const formDifference=computed(()=>Number((Number(form.cantidad||0)-Number(form.s
 async function loadProducts(){
   loadingProducts.value=true
   try{
-    const {data}=await proxy.$axios.get('/productos',{params:{q:search.value,categoria_id:category.value?.id,per_page:productsPerPage,page:productsPage.value}})
+    const {data}=await proxy.$axios.get('/productos',{params:{q:search.value,categoria_id:category.value?.id,orden:order.value,almacen_id:id,conteo:countFilter.value||undefined,per_page:productsPerPage,page:productsPage.value}})
     products.value=data.data;productsLastPage.value=data.last_page||1;productsTotal.value=data.total||0;productsFrom.value=data.from||0;productsTo.value=data.to||0
+    // Al contar se vacían páginas: si la actual quedó fuera de rango, se vuelve a la última que sí existe.
+    if(productsPage.value>productsLastPage.value){productsPage.value=productsLastPage.value;return loadProducts()}
   }catch(e){proxy.$alert.error(e.response?.data?.message||'No se pudieron cargar los productos')}
   finally{loadingProducts.value=false}
 }
 function resetProductsPage(){productsPage.value=1;loadProducts()}
+// Con el filtro de conteo activo la grilla cambia al guardar o quitar una línea; si es "Todos" basta con el contador.
+function refreshGrid(){if(countFilter.value)loadProducts()}
 function handleSearchInput(){clearTimeout(productsSearchTimer);productsSearchTimer=setTimeout(resetProductsPage,250)}
 function focusSearch(){setTimeout(()=>searchInput.value?.focus(),50)}
 async function openExact(value){
@@ -226,7 +242,7 @@ async function saveCount(){
     else await proxy.$axios.post(`/almacenes/${id}/detalles`,linePayload())
     proxy.$alert.success(`${form.nombre} registrado`)
     countDialog.value=false
-    await loadAlmacen(true)
+    await loadAlmacen(true);refreshGrid()
   }catch(e){
     // 409: otra persona ya contó este producto en esta revisión.
     if(e.response?.status===409)return askReplace(e.response.data.message)
@@ -240,14 +256,14 @@ function askReplace(message){
       await proxy.$axios.post(`/almacenes/${id}/detalles`,linePayload({reemplazar:true}))
       proxy.$alert.success(`${form.nombre} actualizado`)
       countDialog.value=false
-      await loadAlmacen(true)
+      await loadAlmacen(true);refreshGrid()
     }catch(e){proxy.$alert.error(e.response?.data?.message||'No se pudo guardar el producto')}
     finally{savingLine.value=false}
   })
 }
 function removeItem(item){
   proxy.$alert.dialog(`¿Quitar ${item.nombre} de la revisión?`).onOk(async()=>{
-    try{await proxy.$axios.delete(`/almacenes/${id}/detalles/${item.id}`);proxy.$alert.success('Producto quitado');loadAlmacen(true)}
+    try{await proxy.$axios.delete(`/almacenes/${id}/detalles/${item.id}`);proxy.$alert.success('Producto quitado');await loadAlmacen(true);refreshGrid()}
     catch(e){proxy.$alert.error(e.response?.data?.message||'No se pudo quitar el producto')}
   })
 }
@@ -276,6 +292,8 @@ async function loadAlmacen(silent=false){
 onMounted(()=>{
   loadAlmacen();loadProducts()
   proxy.$axios.get('/productos-catalogos').then(r=>categories.value=r.data.categorias).catch(()=>{})
+  // Tamaño del catálogo: con lo revisado alcanza para saber cuánto falta sin pedir la lista entera.
+  proxy.$axios.get('/productos',{params:{per_page:1}}).then(r=>catalogTotal.value=r.data.total||0).catch(()=>{})
   // Varias personas cargan a la vez: la lista se refresca sola mientras la pestaña está visible.
   refreshTimer=setInterval(()=>{if(!document.hidden&&!countDialog.value&&editable.value)loadAlmacen(true)},10000)
 })
@@ -284,13 +302,14 @@ onBeforeUnmount(()=>{clearTimeout(productsSearchTimer);clearInterval(refreshTime
 
 <style scoped>
 .product-loading{min-height:280px}
-.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:5px;max-height:calc(100vh - 300px);overflow:auto}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:4px;max-height:calc(100vh - 322px);overflow:auto}
 .product-card{overflow:hidden}.product-card:hover{border-color:#f57c00;background:#fffaf5}.product-card--done{border-color:#21ba45;background:#f3fbf5}
-.product-image{position:relative;height:54px;background:#fffaf3;display:flex;align-items:center;justify-content:center}.product-image img{width:100%;height:100%;object-fit:contain}
-.done-mark{position:absolute;top:2px;right:2px;background:#fff;border-radius:50%}
-.product-name{height:30px;font-size:11px;line-height:15px}.product-meta{font-size:9px;line-height:13px;white-space:nowrap;overflow:hidden}
-.count-list{max-height:calc(100vh - 296px);overflow:auto}.count-thumb{min-width:38px;padding-right:6px}.count-meta{font-size:11px;line-height:14px}
-.count-lots{margin-top:2px;line-height:16px}
+.product-image{position:relative;height:42px;background:#fffaf3;display:flex;align-items:center;justify-content:center}.product-image img{width:100%;height:100%;object-fit:contain}
+.done-mark{position:absolute;top:1px;right:1px;background:#fff;border-radius:50%}
+.product-name{height:26px;font-size:10px;line-height:13px}.product-meta{font-size:9px;line-height:12px;white-space:nowrap;overflow:hidden}
+.count-list{max-height:calc(100vh - 296px);overflow:auto}.count-thumb{min-width:32px;padding-right:5px}
+.count-item{min-height:34px}.count-name{font-size:11px;line-height:14px}.count-meta{font-size:10px;line-height:13px}
+.count-lots{margin-top:1px;line-height:15px}
 .lot-row{display:flex;align-items:center;gap:4px;margin-bottom:4px}
 .lot-input{height:28px;border:1px solid #cfd8dc;border-radius:4px;padding:2px 6px;font-size:12px;color:#263238;background:#fff;min-width:0;flex:1 1 auto}
 .lot-input.date{flex:0 0 128px}.lot-input.qty{flex:0 0 86px;text-align:right;font-weight:700}

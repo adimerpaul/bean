@@ -146,7 +146,16 @@ class ProductoController extends Controller
         if ($categoriaId = $request->integer('categoria_id')) {
             $query->where('categoria_id', $categoriaId);
         }
+        // Conteo de una revisión de almacén: separa lo que falta contar de lo ya contado.
+        if (($almacenId = $request->integer('almacen_id')) && in_array($request->input('conteo'), ['pendientes', 'contados'], true)) {
+            $contado = fn ($q) => $q->selectRaw('1')->from('almacen_detalles')
+                ->whereColumn('almacen_detalles.producto_id', 'productos.id')
+                ->where('almacen_detalles.almacen_id', $almacenId);
+            $request->input('conteo') === 'pendientes' ? $query->whereNotExists($contado) : $query->whereExists($contado);
+        }
 
+        // "Costo" es la plata parada en ese producto: stock por precio de compra.
+        $costo = DB::raw('stock_inicial * precio_compra');
         [$column, $direction] = match ($request->input('orden')) {
             'nombre_desc' => ['nombre', 'desc'],
             'stock_desc' => ['stock_inicial', 'desc'],
@@ -155,6 +164,8 @@ class ProductoController extends Controller
             'precio_venta_asc' => ['precio_venta', 'asc'],
             'precio_compra_desc' => ['precio_compra', 'desc'],
             'precio_compra_asc' => ['precio_compra', 'asc'],
+            'costo_desc' => [$costo, 'desc'],
+            'costo_asc' => [$costo, 'asc'],
             'categoria_asc' => ['categoria', 'asc'],
             default => ['nombre', 'asc'],
         };

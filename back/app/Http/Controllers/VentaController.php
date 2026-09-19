@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\VentasExport;
+use App\Exports\Comun\ContextoReporte;
+use App\Exports\VentasReporteExport;
+use App\Models\Configuracion;
 use App\Models\Lote;
 use App\Models\Producto;
 use App\Models\User;
 use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -17,7 +20,11 @@ class VentaController extends Controller
     public function index(Request $request)
     {
         $this->authorizeAction($request, 'Ver Ventas');
-        $query = $this->filteredQuery($request)->withCount('detalles')->latest('fecha');
+        $query = $this->filteredQuery($request)
+            ->withCount('detalles')
+            // Resumen corto de productos para la columna del listado: sólo lo que se pinta.
+            ->with(['detalles' => fn ($q) => $q->select('id', 'venta_id', 'nombre', 'cantidad', 'unidad')])
+            ->latest('fecha');
 
         $perPage = (int) $request->input('per_page', 50);
 
@@ -40,13 +47,14 @@ class VentaController extends Controller
     }
 
     /**
-     * Panel de inicio. El rango se elige con ?periodo=hoy|ayer|semana|mes|anio (por defecto la semana)
+     * Panel de inicio. El rango se elige con ?periodo=hoy|ayer|semana|mes|anio|rango (por defecto la semana)
      * y todos los indicadores, no sólo la serie, se calculan dentro de ese rango.
+     * Con periodo=rango manda el usuario las fechas: ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD.
      */
     public function dashboard(Request $request)
     {
         $this->authorizeAction($request, 'Ver Estadísticas');
-        [$period, $from, $to, $granularity] = $this->dashboardRange((string) $request->query('periodo', 'semana'));
+        [$period, $from, $to, $granularity] = $this->dashboardRange((string) $request->query('periodo', 'semana'), $request);
 
         $sales = fn () => Venta::where('estado', 'COMPLETADA')->whereBetween('fecha', [$from, $to]);
         $details = fn () => DB::table('venta_detalles')
@@ -71,21 +79,34 @@ class VentaController extends Controller
             ->groupBy('usuario_nombre')->orderByDesc('total')->limit(8)->get();
         $payments = $sales()->selectRaw('tipo_pago as nombre, SUM(total) as total')
             ->groupBy('tipo_pago')->get();
+        // Ganancia por fila del detalle: lo mismo que el indicador, pero agrupado.
+        $gain = 'COALESCE(SUM(((venta_detalles.precio_venta - venta_detalles.precio_compra) * venta_detalles.cantidad) - venta_detalles.descuento), 0) as ganancia';
         $topProducts = $details()
-            ->selectRaw('venta_detalles.producto_id, venta_detalles.nombre, venta_detalles.foto, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.total) as total')
+            ->selectRaw("venta_detalles.producto_id, venta_detalles.nombre, venta_detalles.foto, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.total) as total, $gain")
             ->groupBy('venta_detalles.producto_id', 'venta_detalles.nombre', 'venta_detalles.foto')
+            ->orderByDesc('cantidad')->limit(8)->get();
+        // Mismo ranking agrupado por categoría del snapshot; las ventas sin categoría se juntan en una sola línea.
+        $category = "COALESCE(NULLIF(venta_detalles.categoria, ''), 'SIN CATEGORÍA')";
+        $topCategories = $details()
+            ->selectRaw("$category as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.total) as total, $gain")
+            ->groupBy(DB::raw($category))
             ->orderByDesc('cantidad')->limit(8)->get();
 
         return response()->json([
             'periodo' => ['clave' => $period, 'titulo' => $this->periodTitle($period), 'desde' => $from->toDateTimeString(), 'hasta' => $to->toDateTimeString(), 'granularidad' => $granularity],
             'indicadores' => ['ventas' => $total, 'ganancia' => $profit, 'productos' => $items, 'cantidad_ventas' => $count, 'ticket_promedio' => $count ? $total / $count : 0],
-            'diario' => $serie, 'usuarios' => $byUser, 'pagos' => $payments, 'productos_top' => $topProducts,
+            'diario' => $serie, 'usuarios' => $byUser, 'pagos' => $payments,
+            'productos_top' => $topProducts, 'categorias_top' => $topCategories,
         ]);
     }
 
     /** Rango del panel: [clave, desde, hasta, granularidad de la serie]. */
-    private function dashboardRange(string $period): array
+    private function dashboardRange(string $period, ?Request $request = null): array
     {
+        if ($period === 'rango') {
+            return $this->customRange($request);
+        }
+
         return match ($period) {
             'hoy' => ['hoy', now()->startOfDay(), now()->endOfDay(), 'hora'],
             'ayer' => ['ayer', now()->subDay()->startOfDay(), now()->subDay()->endOfDay(), 'hora'],
@@ -95,9 +116,37 @@ class VentaController extends Controller
         };
     }
 
+    /**
+     * Rango elegido a mano. Fechas inválidas o faltantes caen en hoy, se ordenan si vienen
+     * al revés y la granularidad de la serie se decide por el largo del rango.
+     */
+    private function customRange(?Request $request): array
+    {
+        $parse = function ($value) {
+            try {
+                return $value ? Carbon::parse((string) $value) : null;
+            } catch (\Exception) {
+                return null;
+            }
+        };
+
+        $from = $parse($request?->query('desde')) ?? now();
+        $to = $parse($request?->query('hasta')) ?? $from->copy();
+        if ($to->lt($from)) {
+            [$from, $to] = [$to, $from];
+        }
+        $from = $from->startOfDay();
+        $to = $to->endOfDay();
+
+        $days = $from->diffInDays($to) + 1;
+        $granularity = $days <= 2 ? 'hora' : ($days <= 92 ? 'dia' : 'mes');
+
+        return ['rango', $from, $to, $granularity];
+    }
+
     private function periodTitle(string $period): string
     {
-        return ['hoy' => 'Hoy', 'ayer' => 'Ayer', 'mes' => 'Últimos 30 días', 'anio' => 'Últimos 12 meses'][$period] ?? 'Últimos 7 días';
+        return ['hoy' => 'Hoy', 'ayer' => 'Ayer', 'mes' => 'Últimos 30 días', 'anio' => 'Últimos 12 meses', 'rango' => 'Rango elegido'][$period] ?? 'Últimos 7 días';
     }
 
     /** Agrupación por hora/día/mes; MySQL y el SQLite de los tests usan los mismos tokens de formato. */
@@ -137,11 +186,90 @@ class VentaController extends Controller
         return $serie;
     }
 
+    /**
+     * Reporte de ventas en varias hojas con los mismos filtros de la pantalla.
+     * Incluye completadas y anuladas: cada hoja separa lo anulado en columnas
+     * propias para que los totales sigan siendo el ingreso real del periodo.
+     */
     public function exportExcel(Request $request)
     {
         $this->authorizeAction($request, 'Ver Ventas');
 
-        return Excel::download(new VentasExport($this->filteredQuery($request)->latest('fecha')->get()), 'ventas_'.now()->format('Ymd_His').'.xlsx');
+        $ventas = $this->filteredQuery($request)->orderBy('fecha')->get();
+        $detalles = $this->detallesDelFiltro($request);
+        $productos = Producto::with('categoriaRelacion:id,nombre')
+            ->whereIn('id', $detalles->pluck('producto_id')->filter()->unique())
+            ->get()->keyBy('id');
+
+        $export = new VentasReporteExport(
+            $this->contextoReporte($request),
+            $ventas,
+            $detalles,
+            $this->lotesDelFiltro($request),
+            $productos,
+        );
+
+        return Excel::download($export, 'reporte_ventas_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    /** Líneas de venta del filtro, con los datos de cabecera que necesitan las hojas. */
+    private function detallesDelFiltro(Request $request)
+    {
+        return DB::table('venta_detalles as d')
+            ->join('ventas as v', 'v.id', '=', 'd.venta_id')
+            ->whereNull('d.deleted_at')
+            ->whereIn('d.venta_id', $this->filteredQuery($request)->select('id'))
+            ->orderBy('v.fecha')->orderBy('d.id')
+            ->select('d.id', 'd.venta_id', 'd.producto_id', 'd.codigo', 'd.nombre', 'd.categoria', 'd.unidad',
+                'd.precio_compra', 'd.precio_venta', 'd.cantidad', 'd.subtotal', 'd.descuento', 'd.total',
+                'v.numero', 'v.fecha', 'v.estado', 'v.usuario_nombre', 'v.caja', 'v.tipo_pago')
+            ->get();
+    }
+
+    /** Lotes consumidos por esas ventas: de ahí sale qué vencimiento tenía lo vendido. */
+    private function lotesDelFiltro(Request $request)
+    {
+        return DB::table('venta_detalle_lotes as vdl')
+            ->join('venta_detalles as d', 'd.id', '=', 'vdl.venta_detalle_id')
+            ->join('ventas as v', 'v.id', '=', 'd.venta_id')
+            ->join('lotes as l', 'l.id', '=', 'vdl.lote_id')
+            ->whereNull('d.deleted_at')
+            ->whereIn('d.venta_id', $this->filteredQuery($request)->select('id'))
+            ->orderBy('v.fecha')
+            ->select('v.numero', 'v.fecha', 'v.estado', 'v.usuario_nombre', 'd.codigo', 'd.nombre', 'd.unidad',
+                'd.precio_compra', 'l.lote', 'l.fecha_vencimiento', 'vdl.cantidad')
+            ->get();
+    }
+
+    /** Cabecera del reporte: empresa, quién exporta, periodo y filtros de la pantalla. */
+    private function contextoReporte(Request $request): ContextoReporte
+    {
+        $empresa = Configuracion::first();
+        $filtros = [];
+        if ($busqueda = trim((string) $request->input('q'))) {
+            $filtros['Búsqueda'] = $busqueda;
+        }
+        if ($userId = $request->integer('user_id')) {
+            $filtros['Usuario'] = User::find($userId)?->name ?? 'ID '.$userId;
+        }
+        if ($caja = $request->integer('caja')) {
+            $filtros['Caja'] = 'CAJA '.$caja;
+        }
+        $desde = $request->input('hora_desde');
+        $hasta = $request->input('hora_hasta');
+        if ($desde || $hasta) {
+            $filtros['Horario'] = ($desde ?: '00:00').' a '.($hasta ?: '23:59');
+        }
+
+        return new ContextoReporte(
+            empresa: $empresa?->nombre_empresa ?: 'Bean',
+            nit: $empresa?->nit,
+            usuario: $request->user()?->name ?? $request->user()?->username ?? '-',
+            generado: now(),
+            desde: $request->date('desde')?->startOfDay(),
+            hasta: $request->date('hasta')?->endOfDay(),
+            filtros: $filtros,
+        );
     }
 
     public function exportPdf(Request $request)
