@@ -10,6 +10,7 @@ use App\Models\Producto;
 use App\Models\User;
 use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -290,10 +291,32 @@ class VentaController extends Controller
         return response()->json($venta->load('detalles'));
     }
 
+    /**
+     * Antes de exportar las ventas offline se pregunta cuáles ya existen: así se
+     * vinculan (en vez de registrarse otra vez) las que llegaron al servidor aunque
+     * la respuesta se haya perdido.
+     */
+    public function verificarOffline(Request $request)
+    {
+        $this->authorizeAction($request, ['Crear Ventas', 'Crear Ventas Offline']);
+        $data = $request->validate([
+            'uuids' => ['required', 'array', 'min:1', 'max:200'],
+            'uuids.*' => ['required', 'uuid'],
+        ]);
+
+        $ventas = Venta::whereIn('uuid', $data['uuids'])
+            ->get(['id', 'uuid', 'numero', 'fecha', 'total', 'estado']);
+
+        return response()->json(['registradas' => $ventas->keyBy('uuid')]);
+    }
+
     public function store(Request $request)
     {
-        $this->authorizeAction($request, 'Crear Ventas');
+        // Con uuid es el envío de una venta hecha sin conexión: basta el permiso offline.
+        $this->authorizeAction($request, $request->filled('uuid') ? ['Crear Ventas', 'Crear Ventas Offline'] : 'Crear Ventas');
         $data = $request->validate([
+            'uuid' => ['nullable', 'uuid'],
+            'fecha_offline' => ['nullable', 'date'],
             'descuento' => ['nullable', 'numeric', 'min:0'],
             'caja' => ['nullable', 'integer', 'between:1,5'],
             'tipo_pago' => ['required', 'in:EFECTIVO,QR,COMBINADO'],
@@ -306,9 +329,51 @@ class VentaController extends Controller
             'detalles.*.precio_venta' => ['required', 'numeric', 'min:0'],
         ]);
 
+        // Reenvío de una venta offline que ya llegó: se devuelve la registrada, no se duplica.
+        if ($registrada = $this->ventaOfflineRegistrada($data['uuid'] ?? null)) {
+            return response()->json($registrada->load('detalles')->toArray() + ['duplicada' => true]);
+        }
+
+        try {
+            $venta = $this->registrarVenta($request, $data);
+        } catch (UniqueConstraintViolationException $e) {
+            // Dos envíos simultáneos del mismo uuid: gana el primero.
+            $registrada = $this->ventaOfflineRegistrada($data['uuid'] ?? null);
+            if (! $registrada) {
+                throw $e;
+            }
+
+            return response()->json($registrada->load('detalles')->toArray() + ['duplicada' => true]);
+        }
+
+        return response()->json($venta->load('detalles'), 201);
+    }
+
+    private function ventaOfflineRegistrada(?string $uuid): ?Venta
+    {
+        return $uuid ? Venta::where('uuid', $uuid)->first() : null;
+    }
+
+    /** Hora del cobro según el equipo que guardó la venta offline. */
+    private function fechaOffline(?string $fecha): ?Carbon
+    {
+        return $fecha ? Carbon::parse($fecha)->setTimezone(config('app.timezone')) : null;
+    }
+
+    /**
+     * La venta se fecha con la hora del cobro salvo que el reloj del equipo esté
+     * adelantado o atrasado más de 30 días: ahí se usa la hora de llegada.
+     */
+    private function fechaVenta(?Carbon $offline): Carbon
+    {
+        return ! $offline || $offline->isFuture() || $offline->lt(now()->subDays(30)) ? now() : $offline;
+    }
+
+    private function registrarVenta(Request $request, array $data): Venta
+    {
         $puedeCambiarPrecio = (bool) $request->user()->hasPermissionTo('Modificar Precio en Venta');
 
-        $venta = DB::transaction(function () use ($request, $data, $puedeCambiarPrecio) {
+        return DB::transaction(function () use ($request, $data, $puedeCambiarPrecio) {
             $items = [];
             $subtotal = 0;
             $requestedByProduct = [];
@@ -333,7 +398,9 @@ class VentaController extends Controller
             $qr = $data['tipo_pago'] === 'QR' ? $total : round((float) ($data['monto_qr'] ?? 0), 2);
             abort_if(abs(($cash + $qr) - $total) > 0.009, 422, 'Los montos de efectivo y QR deben sumar el total de la venta');
 
+            $offlineDate = $this->fechaOffline($data['fecha_offline'] ?? null);
             $sale = Venta::create([
+                'uuid' => $data['uuid'] ?? null,
                 'user_id' => $request->user()->id,
                 'usuario_nombre' => $request->user()->name,
                 'caja' => (int) ($data['caja'] ?? 1),
@@ -345,7 +412,8 @@ class VentaController extends Controller
                 'monto_qr' => $qr,
                 'estado' => 'COMPLETADA',
                 'observacion' => $data['observacion'] ?? null,
-                'fecha' => now(),
+                'fecha' => $this->fechaVenta($offlineDate),
+                'fecha_offline' => $offlineDate,
             ]);
             $sale->update(['numero' => 'V-'.str_pad((string) $sale->id, 8, '0', STR_PAD_LEFT)]);
 
@@ -392,8 +460,6 @@ class VentaController extends Controller
 
             return $sale;
         });
-
-        return response()->json($venta->load('detalles'), 201);
     }
 
     private function filteredQuery(Request $request)
@@ -447,8 +513,9 @@ class VentaController extends Controller
         return response()->json($venta->fresh());
     }
 
-    private function authorizeAction(Request $request, string $permission): void
+    /** Con varios permisos basta tener cualquiera de ellos. */
+    private function authorizeAction(Request $request, string|array $permission): void
     {
-        abort_unless($request->user()?->hasPermissionTo($permission), 403, 'No tiene permiso para realizar esta acción');
+        abort_unless($request->user()?->hasAnyPermission((array) $permission), 403, 'No tiene permiso para realizar esta acción');
     }
 }

@@ -108,6 +108,7 @@
 
 <script setup>
 import { ref, computed, getCurrentInstance, onMounted } from 'vue'
+import { saveSession } from '../addons/sesion'
 
 const { proxy } = getCurrentInstance()
 
@@ -152,12 +153,8 @@ function login () {
         newPasswordConfirm.value = ''
         vista.value = 'cambiar'
       } else {
-        const perms = (user.permissions || []).map(p => p.name)
         proxy.$store.isLogged    = true
-        proxy.$store.permissions = perms
-        localStorage.setItem('tokenBean', token)
-        localStorage.setItem('permissionsBean', JSON.stringify(perms))
-        localStorage.setItem('user', JSON.stringify(user))
+        proxy.$store.permissions = saveSession(user, token)
         proxy.$alert.success('Bienvenido ' + user.name)
         proxy.$router.push('/')
       }
@@ -177,12 +174,8 @@ function cambiarPassword () {
   })
     .then(() => {
       const user = proxy.$store.user
-      const perms = (user.permissions || []).map(p => p.name)
       proxy.$store.isLogged    = true
-      proxy.$store.permissions = perms
-      localStorage.setItem('tokenBean', tempToken)
-      localStorage.setItem('permissionsBean', JSON.stringify(perms))
-      localStorage.setItem('user', JSON.stringify(user))
+      proxy.$store.permissions = saveSession(user, tempToken)
       proxy.$alert.success('Contraseña actualizada. ¡Bienvenido!')
       proxy.$router.push('/')
     })

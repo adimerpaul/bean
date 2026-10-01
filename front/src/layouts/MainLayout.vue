@@ -16,6 +16,7 @@
           <div class="text-subtitle1 text-weight-medium" style="line-height: 0.9">
             {{ companyName }}
           </div>
+          <q-chip v-if="offline" dense square color="negative" text-color="white" icon="wifi_off" label="Sin conexión" />
         </div>
 
         <q-space />
@@ -89,6 +90,9 @@
               <q-item-section>
                 <q-item-label class="drawer-menu-link__label" lines="1">{{ link.title }}</q-item-label>
               </q-item-section>
+              <q-item-section v-if="link.link === '/ventas/offline' && ventasPendientes" side>
+                <q-badge color="negative" :label="ventasPendientes" />
+              </q-item-section>
             </q-item>
           </q-list>
 
@@ -117,7 +121,9 @@
 </template>
 
 <script setup>
-import { computed, getCurrentInstance, onMounted, ref } from 'vue'
+import { computed, getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue'
+import { clearSession } from '../addons/sesion'
+import { ventasPorEnviar } from '../addons/ventasOffline'
 
 const { proxy } = getCurrentInstance()
 
@@ -125,6 +131,14 @@ const leftDrawerOpen = ref(false)
 const cachedCompany = JSON.parse(localStorage.getItem('empresaBean') || '{}')
 const companyName = ref(cachedCompany.nombre_empresa || 'Bean')
 const companyLogo = ref(cachedCompany.logo_url || '/bean-logo.svg')
+
+// Aviso de red: el navegador sin red o una llamada al API sin respuesta (navigator.onLine solo no es confiable).
+const sinRed = ref(!navigator.onLine)
+const offline = computed(() => proxy.$store.offline || sinRed.value)
+const marcarEstadoRed = () => { sinRed.value = !navigator.onLine }
+// Ventas cobradas sin conexión que todavía no se exportaron: se avisa en el menú.
+const ventasPendientes = ref(ventasPorEnviar().length)
+watch(() => proxy.$route.path, () => { ventasPendientes.value = ventasPorEnviar().length })
 
 const links = [
   { title: 'Inicio',    icon: 'dashboard',   link: '/',         can: null },
@@ -134,6 +148,8 @@ const links = [
   { title: 'Productos', icon: 'inventory_2', link: '/productos', can: 'Ver Productos' },
   { title: 'Nueva venta', icon: 'point_of_sale', link: '/ventas/nueva', can: 'Crear Ventas' },
   { title: 'Ventas', icon: 'receipt_long', link: '/ventas', can: 'Ver Ventas' },
+  { title: 'Nueva venta offline', icon: 'wifi_off', link: '/ventas/offline/nueva', can: 'Crear Ventas Offline' },
+  { title: 'Ventas offline', icon: 'cloud_queue', link: '/ventas/offline', can: 'Crear Ventas Offline' },
   { title: 'Nueva compra', icon: 'add_business', link: '/compras/nueva', can: 'Crear Compras' },
   { title: 'Compras', icon: 'shopping_bag', link: '/compras', can: 'Ver Compras' },
   { title: 'Proveedores', icon: 'groups', link: '/proveedores', can: 'Ver Compras' },
@@ -142,6 +158,7 @@ const links = [
   { title: 'Bajas', icon: 'delete_forever', link: '/bajas', can: 'Ver Bajas' },
   { title: 'Por vencer', icon: 'schedule', link: '/productos/por-vencer', can: ['Ver Compras', 'Ver Almacenes'] },
   { title: 'Vencidos', icon: 'event_busy', link: '/productos/vencidos', can: ['Ver Compras', 'Ver Almacenes'] },
+  { title: 'Ganancias', icon: 'trending_up', link: '/ganancias', can: 'Ver Ganancias' },
   { title: 'Configuración', icon: 'settings', link: '/configuracion', can: 'Gestionar Configuración' },
 ]
 
@@ -156,21 +173,27 @@ function toggleLeftDrawer () {
 }
 
 onMounted(() => {
+  window.addEventListener('online', marcarEstadoRed)
+  window.addEventListener('offline', marcarEstadoRed)
   proxy.$axios.get('/configuracion').then(({ data }) => {
     data.logo_url = data.logo ? `${proxy.$imgBase}/images/${data.logo}` : null
     companyName.value = data.nombre_empresa || 'Bean'
     companyLogo.value = data.logo_url || '/bean-logo.svg'
     localStorage.setItem('empresaBean', JSON.stringify(data))
-  })
+  }).catch(() => { /* sin conexión: se usa lo guardado */ })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('online', marcarEstadoRed)
+  window.removeEventListener('offline', marcarEstadoRed)
 })
 
 function logout () {
-  proxy.$alert.dialog('¿Desea salir del sistema?').onOk(() => {
+  const pendientes = ventasPorEnviar().length
+  proxy.$alert.dialog('¿Desea salir del sistema?', pendientes ? `Hay ${pendientes} venta(s) offline sin exportar; quedan guardadas en este equipo.` : '').onOk(() => {
     proxy.$axios.post('/logout').finally(() => {
       proxy.$store.logout()
-      localStorage.removeItem('tokenBean')
-      localStorage.removeItem('permissionsBean')
-      localStorage.removeItem('user')
+      clearSession()
       delete proxy.$axios.defaults.headers.common['Authorization']
       proxy.$router.push('/login')
     })

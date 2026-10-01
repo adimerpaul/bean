@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#171717</color>
+    <!-- Negro de marca de Bean: el logo ya viene sobre ese fondo. -->
+    <color name="splash_background">#171717</color>
+</resources>
