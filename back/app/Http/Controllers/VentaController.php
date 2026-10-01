@@ -86,10 +86,14 @@ class VentaController extends Controller
             ->groupBy('venta_detalles.producto_id', 'venta_detalles.nombre', 'venta_detalles.foto')
             ->orderByDesc('cantidad')->limit(8)->get();
         // Mismo ranking agrupado por categoría del snapshot; las ventas sin categoría se juntan en una sola línea.
+        // La categoría se normaliza en una subconsulta: con ONLY_FULL_GROUP_BY (MySQL/MariaDB) no se puede
+        // agrupar por la expresión ni por su alias, así que afuera el GROUP BY ya es una columna simple.
         $category = "COALESCE(NULLIF(venta_detalles.categoria, ''), 'SIN CATEGORÍA')";
-        $topCategories = $details()
-            ->selectRaw("$category as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.total) as total, $gain")
-            ->groupBy(DB::raw($category))
+        $gainRow = '((venta_detalles.precio_venta - venta_detalles.precio_compra) * venta_detalles.cantidad) - venta_detalles.descuento';
+        $categoryRows = $details()->selectRaw("$category as categoria, venta_detalles.cantidad as cantidad, venta_detalles.total as total, ($gainRow) as ganancia");
+        $topCategories = DB::query()->fromSub($categoryRows, 'c')
+            ->selectRaw('c.categoria as nombre, SUM(c.cantidad) as cantidad, SUM(c.total) as total, COALESCE(SUM(c.ganancia), 0) as ganancia')
+            ->groupBy('c.categoria')
             ->orderByDesc('cantidad')->limit(8)->get();
 
         return response()->json([
