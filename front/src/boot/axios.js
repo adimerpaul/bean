@@ -1,6 +1,8 @@
 import { defineBoot } from '#q-app/wrappers'
 import axios from 'axios'
 import { Alert } from '../addons/Alert'
+import { companyData } from '../addons/empresa'
+import { clearSession, saveSession, sessionPermissions, sessionToken, sessionUser } from '../addons/sesion'
 import { useCounterStore } from '../stores/example-store'
 
 // Be careful when using SSR for cross-request state pollution
@@ -20,42 +22,55 @@ export default defineBoot(({ app, router }) => {
   app.config.globalProperties.$url = import.meta.env.VITE_API_BACK
   app.config.globalProperties.$imgBase = (import.meta.env.VITE_API_BACK || '').replace(/\/api\/?$/, '')
   app.config.globalProperties.$version = import.meta.env.VITE_VERSION
+  // Primero lo guardado (los tickets se imprimen igual sin conexión) y luego lo del servidor.
+  app.config.globalProperties.$empresa = companyData()
   app.config.globalProperties.$axios.get('/configuracion').then(({ data }) => {
     data.logo_url = data.logo ? `${app.config.globalProperties.$imgBase}/images/${data.logo}` : null
     localStorage.setItem('empresaBean', JSON.stringify(data))
     app.config.globalProperties.$empresa = data
-  })
+  }).catch(() => { /* sin conexión: se usa la configuración guardada */ })
 
-  const token = localStorage.getItem('tokenBean')
+  function cerrarSesion () {
+    clearSession()
+    delete app.config.globalProperties.$axios.defaults.headers.common['Authorization']
+    store.logout()
+    if (router.currentRoute.value.path !== '/login') router.push('/login')
+  }
+
+  // Sólo el servidor cierra la sesión: un 401 significa token inválido. Un error de
+  // red (sin internet o servidor caído) no toca nada, para poder seguir vendiendo offline.
+  app.config.globalProperties.$axios.interceptors.response.use(
+    response => {
+      store.offline = false
+
+      return response
+    },
+    error => {
+      store.offline = !error.response
+      if (error.response?.status === 401 && sessionToken()) cerrarSesion()
+
+      return Promise.reject(error)
+    }
+  )
+
+  const token = sessionToken()
   if (token) {
     app.config.globalProperties.$axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
-    // Cargar permisos cacheados para que los "can*" estén listos antes de que responda /me
-    try {
-      const cachedPerms = JSON.parse(localStorage.getItem('permissionsBean') || '[]')
-      if (cachedPerms.length) {
-        store.permissions = cachedPerms
-        store.isLogged = true
-      }
-    } catch (e) { /* noop */ }
-
-    app.config.globalProperties.$axios.get('me').then(response => {
+    // Usuario y permisos guardados: el menú queda listo sin esperar a /me (y sin internet).
+    const cachedUser = sessionUser()
+    const cachedPerms = sessionPermissions()
+    if (cachedUser.id || cachedPerms.length) {
+      store.user = cachedUser
+      store.permissions = cachedPerms
       store.isLogged = true
-      store.user = response.data
-      const perms = (response.data.permissions || []).map(p => p.name)
-      store.permissions = perms
-      localStorage.setItem('user', JSON.stringify(response.data))
-      localStorage.setItem('permissionsBean', JSON.stringify(perms))
-    }).catch(() => {
-      localStorage.removeItem('tokenBean')
-      localStorage.removeItem('permissionsBean')
-      localStorage.removeItem('user')
-      delete app.config.globalProperties.$axios.defaults.headers.common['Authorization']
-      store.isLogged = false
-      store.permissions = []
-      store.user = {}
-      router.push('/login')
-    })
+    }
+
+    app.config.globalProperties.$axios.get('me').then(({ data }) => {
+      store.isLogged = true
+      store.user = data
+      store.permissions = saveSession(data)
+    }).catch(() => { /* 401 lo maneja el interceptor; sin conexión se sigue con la sesión guardada */ })
   }
 
   app.config.globalProperties.$api = api

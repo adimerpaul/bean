@@ -1,0 +1,1 @@
+var e=Object.defineProperty,t=(e,t)=>()=>(t||(e((t={exports:{}}).exports,t),e=null),t.exports),n=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],enumerable:!0});return n||e(r,Symbol.toStringTag,{value:`Module`}),r};function r(){try{return JSON.parse(localStorage.getItem(`empresaBean`)||`{}`)}catch{return{}}}export{t as n,n as r,r as t};

@@ -16,6 +16,8 @@ export const useCounterStore = defineStore('counter', {
     carts: Array.from({ length: CART_COUNT }, emptyCart),
     activeCart: 0,
     compra: emptyCompra(),
+    // Se marca cuando una llamada al API falla sin respuesta del servidor.
+    offline: false,
   }),
 
   getters: {

@@ -14,13 +14,14 @@ class Venta extends Model implements AuditableContract
     protected $fillable = [
         'numero', 'user_id', 'usuario_nombre', 'caja', 'subtotal', 'descuento',
         'total', 'tipo_pago', 'monto_efectivo', 'monto_qr',
-        'estado', 'observacion', 'fecha',
+        'estado', 'observacion', 'fecha', 'uuid', 'fecha_offline',
     ];
 
     protected $casts = [
         'subtotal' => 'decimal:2', 'descuento' => 'decimal:2',
         'total' => 'decimal:2', 'monto_efectivo' => 'decimal:2',
         'monto_qr' => 'decimal:2', 'fecha' => 'datetime',
+        'fecha_offline' => 'datetime',
     ];
 
     public function detalles()

@@ -6,7 +6,7 @@ const css = `
 h2{text-align:center;margin:0}.center{text-align:center}.line{border-top:1px dashed #333;margin:7px 0}
 .logo{display:block;width:70px;max-height:70px;object-fit:contain;margin:0 auto 4px}
 table{width:100%;border-collapse:collapse}th,td{padding:2px}.right{text-align:right}.bold{font-weight:bold}
-.total{font-size:15px}.cancelled{font-size:28px;color:#f57c00;text-align:center;font-weight:bold}
+.total{font-size:15px}.pending{font-size:13px;text-align:center;font-weight:bold;border:1px dashed #333;padding:4px;margin-top:6px}.cancelled{font-size:28px;color:#f57c00;text-align:center;font-weight:bold}
 `
 const esc = value => String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
 const money = value => Number(value || 0).toFixed(2)
@@ -22,6 +22,6 @@ export function printSale (sale) {
   <table><tr><td>Subtotal</td><td class="right">${money(sale.subtotal)}</td></tr><tr><td>Descuento</td><td class="right">-${money(sale.descuento)}</td></tr>
   <tr><td>Efectivo</td><td class="right">${money(sale.monto_efectivo)}</td></tr><tr><td>QR</td><td class="right">${money(sale.monto_qr)}</td></tr>
   <tr class="bold total"><td>TOTAL Bs</td><td class="right">${money(sale.total)}</td></tr></table>
-  ${sale.estado === 'ANULADA' ? '<div class="cancelled">ANULADA</div>' : ''}<div class="line"></div><div class="center">¡Gracias por su compra!</div></div>`
+  ${sale.estado === 'ANULADA' ? '<div class="cancelled">ANULADA</div>' : ''}${sale.pendiente ? '<div class="pending">VENTA OFFLINE<br>PENDIENTE DE ENVÍO</div>' : ''}<div class="line"></div><div class="center">¡Gracias por su compra!</div></div>`
   new Printd().print(element, [css])
 }

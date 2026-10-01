@@ -4,6 +4,7 @@ use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\BajaController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\GananciaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\TiendaController;
 use App\Http\Controllers\UserController;
@@ -48,12 +49,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/ventas', [VentaController::class, 'index']);
     Route::post('/ventas', [VentaController::class, 'store']);
+    Route::post('/ventas-offline/verificar', [VentaController::class, 'verificarOffline']);
     Route::get('/ventas-resumen', [VentaController::class, 'summary']);
     Route::get('/dashboard', [VentaController::class, 'dashboard']);
     Route::get('/ventas-exportar/excel', [VentaController::class, 'exportExcel']);
     Route::get('/ventas-exportar/pdf', [VentaController::class, 'exportPdf']);
     Route::get('/ventas/{venta}', [VentaController::class, 'show']);
     Route::put('/ventas/{venta}/anular', [VentaController::class, 'cancel']);
+
+    Route::get('/ganancias', [GananciaController::class, 'index']);
+    Route::get('/ganancias-catalogos', [GananciaController::class, 'catalogos']);
+    Route::get('/ganancias-ventas', [GananciaController::class, 'ventas']);
 
     Route::get('/compras', [CompraController::class, 'index']);
     Route::get('/compras-resumen', [CompraController::class, 'summary']);

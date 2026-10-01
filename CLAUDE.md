@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Qué es
 
-Bean: sistema de ventas e inventario para un negocio de pollos, embutidos, carnes, quesos y congelados (Bolivia, moneda Bs). Dos aplicaciones separadas en un solo repo:
+Bean: sistema de ventas e inventario para un negocio de pollos, embutidos, carnes, quesos y congelados (Bolivia, moneda Bs). Tres aplicaciones separadas en un solo repo:
 
 - `back/` — API REST Laravel 13 (PHP 8.3), Sanctum + spatie/laravel-permission.
 - `front/` — SPA/PWA Quasar 2 + Vue 3 (Vite), que consume la API por axios.
+- `aplicacion/` — app Android en Flutter (paquete Dart `bean`, id `bo.bean.ventas`) para vendedores: sólo vende. Ver `aplicacion/README.md`.
 
 La UI, los nombres de tablas/columnas y los mensajes de error están en español; el código PHP/JS (variables, métodos) está en inglés. Mantener esa mezcla.
 
@@ -29,6 +30,15 @@ cd front
 npm install
 npm run dev                 # quasar dev (abre navegador)
 npm run build               # quasar build → front/dist
+
+# App móvil (Flutter, sólo Android)
+cd aplicacion
+flutter pub get
+flutter run                 # usa .env.development
+flutter build apk --release # usa .env.production
+flutter test
+flutter analyze
+dart run flutter_launcher_icons   # regenerar el icono desde assets/icono/logo.png
 ```
 
 No hay tests en el frontend (`npm test` es un no-op).
@@ -37,8 +47,10 @@ Los tests corren sobre SQLite en memoria (`back/phpunit.xml`) y usan `RefreshDat
 
 ## Configuración de entorno
 
-- Backend: `back/.env` (MySQL por defecto). `DB_DATABASE` en `.env.example` apunta a `mundolac`; ajustar al crear el entorno.
-- Frontend: `front/.env.development` y `front/.env.production` definen `VITE_API_BACK` (ej. `http://localhost:8000/api`) y `VITE_VERSION`. No hay valores hardcodeados de API salvo el `api` de ejemplo sin usar en `boot/axios.js`.
+- Backend: `back/.env` (MySQL por defecto). `DB_DATABASE` en `.env.example` apunta a `bean`; ajustar al crear el entorno.
+- Frontend: `front/.env.development` y `front/.env.production` definen `VITE_API_BACK` y `VITE_VERSION`. No hay valores hardcodeados de API salvo el `api` de ejemplo sin usar en `boot/axios.js`.
+- App móvil: `aplicacion/.env.development` y `aplicacion/.env.production` definen `API_URL` y `APP_VERSION` (se cargan con `flutter_dotenv` desde `lib/core/entorno.dart`). **Van declarados como `assets` en `pubspec.yaml`, así que se versionan**; sin ellos el build falla.
+- Backends: pruebas en `http://192.168.1.9:8000/api`, producción en `https://bbean.tuprogam.com/api`. Los tres entornos (`front/.env.*`, `aplicacion/.env.*` y el respaldo de `Entorno._urlRespaldo`) apuntan a esos dos.
 
 ## Datos iniciales: viven en migraciones, no en seeders
 
@@ -97,6 +109,10 @@ Los detalles de venta/compra son **snapshots**: copian `codigo`, `nombre`, `unid
 ## Ventas: pagos y descuentos
 
 `tipo_pago` ∈ `EFECTIVO | QR | COMBINADO`. El backend exige que `monto_efectivo + monto_qr == total` (tolerancia 0.009); para EFECTIVO/QR puros los deriva del total. El descuento de cabecera se **prorratea por línea** proporcional al subtotal, dando la diferencia acumulada a la última línea para que la suma cuadre al centavo. `estado` ∈ `COMPLETADA | ANULADA`; los resúmenes y el dashboard filtran siempre por `COMPLETADA` y respetan `deleted_at` en consultas con `DB::table` (soft deletes manuales).
+
+### Ventas offline
+
+Copiado del proyecto hermano `bajocero`. La sesión (token, `user`, permisos) vive en localStorage (`src/addons/sesion.js`) y **sólo un 401 la cierra**: sin red se sigue entrando con lo guardado. `src/addons/ventasOffline.js` guarda en localStorage el catálogo (`catalogoOfflineBean`) y la cola de ventas (`ventasOfflineBean`). Cada venta nace con un `uuid` (también las online, por si se corta la respuesta); `ventas.uuid` es único y `POST /ventas` con un uuid ya registrado devuelve esa venta con `duplicada: true` en lugar de crear otra. `POST /ventas-offline/verificar` dice qué uuids ya existen. `ventas.fecha_offline` = hora del cobro según el equipo (marca la venta como offline); `fecha` la usa salvo reloj desfasado >30 días. Permiso `Crear Ventas Offline` (grupo Ventas): basta para exportar la cola pero no para vender en línea. Páginas: `ventas/OfflineNuevaPage.vue` y `ventas/OfflineIndexPage.vue` (exportar y vínculo a `/ventas?q=V-…`). La PWA (`npm run build:pwa`) es la que permite abrir la app sin internet.
 
 Los números de documento se generan **después** del insert: `V-00000001` / `C-00000001` a partir del id.
 
